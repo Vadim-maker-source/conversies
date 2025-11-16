@@ -1,0 +1,10 @@
+@font-face {
+    font-family: 'Unbounded';
+    src: url('/assets/Unbounded.ttf') format('ttf');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  .logo_font {
+    font-family: 'Unbounded', sans-serif;
+  }

@@ -1,0 +1,286 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int      @id @default(autoincrement())
+  name             String?
+  surname          String?
+  email            String   @unique
+  phone            String?
+  password         String?
+  avatar           String?
+  isPremium        Boolean  @default(false)
+  notificationMode String?  @default("normal")
+  twoFactorEnabled Boolean  @default(false)
+  coins            Int      @default(0)
+
+  accounts         Account[]
+  
+  // Поля для 2FA
+  twoFactorCode     String?
+  twoFactorExpires  DateTime?
+
+  sentGifts     Gift[] @relation("SentGifts")
+  receivedGifts Gift[] @relation("ReceivedGifts")
+  
+  chatMembers ChatMember[]
+  messages    Message[]
+
+  contactsOwned Contact[] @relation("ContactsOwned")
+  contactsAdded Contact[] @relation("ContactsAdded")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+  Reaction Reaction[]
+  MessageRead MessageRead[]
+  deviceLinkingTokens DeviceLinkingToken[]
+  deviceSessions DeviceSession[]
+  eventProgresses EventProgress[]
+  sessions Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       Int
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model DeviceLinkingToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int?     // Сделаем опциональным
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+  
+  @@map("device_linking_tokens")
+}
+
+model DeviceSession {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId  String   @unique // Уникальный идентификатор устройства
+  deviceInfo String? // Информация об устройстве
+  ipAddress String?
+  userAgent String?
+  
+  createdAt DateTime @default(now())
+  lastActive DateTime @default(now())
+  
+  @@map("device_sessions")
+}
+
+model Chat {
+  id               Int      @id @default(autoincrement())
+  name             String?
+  type             ChatType @default(PRIVATE)
+  isChannel        Boolean  @default(false)
+  avatar           String?
+  isPrivate        Boolean? @default(false)
+  pinnedMessageId  Int?     @unique
+  // Участники чата
+  members         ChatMember[]
+  messages        Message[]
+  pinnedMessage   Message?  @relation("PinnedMessage", fields: [pinnedMessageId], references: [id]) // Связь для закрепленного сообщения
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChatMember {
+  id     Int   @id @default(autoincrement())
+  userId Int
+  chatId Int
+  role   ChatRole @default(MEMBER)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, chatId])
+  @@map("chat_members")
+}
+
+model Message {
+  id               Int      @id @default(autoincrement())
+  content          String
+  userId           Int
+  chatId           Int
+  messageId        Int?     // Для ответов на сообщения
+  originalMessageId Int?    // Для пересылки сообщений
+  
+  // Медиа файлы
+  imageUrl String?
+  fileUrl  String?
+  
+  // Статус сообщения
+  isEdited Boolean @default(false)
+  isShared Boolean @default(false) // Пометка о пересланном сообщении
+  
+  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat            Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  replyTo         Message? @relation("MessageReplies", fields: [messageId], references: [id])
+  replies         Message[] @relation("MessageReplies")
+  originalMessage Message? @relation("MessageShares", fields: [originalMessageId], references: [id])
+  sharedMessages  Message[] @relation("MessageShares")
+  pinnedIn        Chat?     @relation("PinnedMessage") // Связь для закрепленных сообщений
+  
+  // Отслеживание прочтения
+  readBy          MessageRead[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("messages")
+  Reaction Reaction[]
+}
+
+model MessageRead {
+  id        Int      @id @default(autoincrement())
+  messageId Int
+  userId    Int
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@map("message_reads")
+}
+
+enum ChatType {
+  PRIVATE
+  GROUP
+}
+
+enum ChatRole {
+  MEMBER
+  ADMIN
+  OWNER
+}
+
+model Contact {
+  id          Int      @id @default(autoincrement())
+  ownerId     Int      // пользователь, который добавил в контакты
+  contactId   Int      // пользователь, который добавлен в контакты
+  name        String?  // кастомное имя для контакта
+  notes       String?  // заметки о контакте
+  
+  // Связи
+  owner   User   @relation("ContactsOwned", fields: [ownerId], references: [id], onDelete: Cascade)
+  contact User   @relation("ContactsAdded", fields: [contactId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, contactId])
+  @@map("contacts")
+}
+
+model Reaction {
+  id        Int      @id @default(autoincrement())
+  messageId Int
+  userId    Int
+  emoji     String   // Эмодзи реакция
+  
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([messageId, userId, emoji])
+  @@map("reactions")
+}
+
+model Gift {
+  id          Int      @id @default(autoincrement())
+  giftId      Int      // ID подарка из assets (1-30)
+  price       Int      // Стоимость подарка в монетах
+  message     String?  // Сообщение с подарком
+  
+  // Кто подарил и кому
+  senderId    Int
+  receiverId  Int
+  
+  // Статус подарка у получателя
+  status      GiftStatus @default(ACTIVE) // ACTIVE, REDEEMED, REGIFTED
+  
+  // Для передаренных подарков
+  originalGiftId Int? // ID оригинального подарка, если это передаренный
+  regiftReceiverId Int? // Кому переподарили
+  
+  sender      User   @relation("SentGifts", fields: [senderId], references: [id])
+  receiver    User   @relation("ReceivedGifts", fields: [receiverId], references: [id])
+  originalGift Gift? @relation("OriginalGift", fields: [originalGiftId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gifts")
+  Gift Gift[] @relation("OriginalGift")
+}
+
+enum GiftStatus {
+  ACTIVE    // Активный подарок
+  REDEEMED  // Обналичен
+  REGIFTED  // Переподарен
+}
+
+model EventProgress {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType String   // "winter_2024"
+  points    Int      @default(0)
+  claimedMilestones String? // JSON массив с полученными наградами
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, eventType])
+  @@map("event_progress")
+}
