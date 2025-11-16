@@ -7,7 +7,7 @@ import YandexProvider from "next-auth/providers/yandex";
 import { sendTwoFactorCode, verifyTwoFactorCode } from "./api/user";
 
 export const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma as unknown as any),
+  // adapter: PrismaAdapter(prisma as unknown as any),
   session: {
     strategy: "jwt",
   },
