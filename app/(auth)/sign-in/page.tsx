@@ -1,15 +1,13 @@
-// app/sign-in/page.tsx
 'use client';
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faYandex } from '@fortawesome/free-brands-svg-icons';
 import Image from "next/image";
 
-export default function SignInPage() {
+// Вынесите основную логику в отдельный компонент
+function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
@@ -20,7 +18,7 @@ export default function SignInPage() {
   const [yandexLoading, setYandexLoading] = useState(false);
   
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // Теперь это безопасно
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -261,5 +259,25 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Основной компонент страницы с Suspense
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
+        <div className="w-full max-w-md">
+          <div className="w-full p-6 bg-black/40 backdrop-blur-sm rounded-xl border border-gray-700 shadow-2xl">
+            <div className="flex items-center justify-center space-x-2">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+              <span className="text-white">Загрузка...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <SignInForm />
+    </Suspense>
   );
 }

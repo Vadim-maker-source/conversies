@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, JSX, Key, JSXElementConstructor, ReactElement, ReactNode, ReactPortal } from 'react'
+import { useState, useEffect, useRef, JSX, Key, JSXElementConstructor, ReactElement, ReactNode, ReactPortal, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { clearCache, getUserSettings, updatePassword, updateUserAvatar, updateUserSettings, buyPremium, getTwoFactorStatus, disableTwoFactor, enableTwoFactor, verifyTwoFactorEnable, addCoins, getLinkedDevices, removeDeviceSession, generatePublicLoginQRCode as generateDeviceLinkingToken, linkDeviceByToken, quickLoginWithQRCode, getCurrentUser } from '@/app/lib/api/user'
 import { uploadAvatar } from '@/app/lib/api/chat'
@@ -867,7 +867,7 @@ function ActionPage({
   )
 }
 
-export default function SettingsPage() {
+function SettingsContent() {
   const [settings, setSettings] = useState({
     name: '',
     surname: '',
@@ -1355,5 +1355,25 @@ useEffect(() => {
       onActionSelect={handleActionSelect}
       getUserAvatar={getUserAvatar}
     />
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black/40 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold text-white mb-4">Настройки</h1>
+            <p className="text-gray-400 text-lg">Загрузка...</p>
+          </div>
+          <div className="flex justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <SettingsContent />
+    </Suspense>
   )
 }
