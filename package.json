@@ -7,7 +7,9 @@
     "build": "next build --turbopack",
     "start": "next start",
     "migrate": "dotenv -e .env npx prisma migrate dev",
-    "generate": "dotenv -e .env npx prisma db push generate"
+    "generate": "dotenv -e .env npx prisma db push generate",
+    "postbuild": "cp -r node_modules/.prisma/client/* .next/standalone/node_modules/.prisma/client/ || true",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
