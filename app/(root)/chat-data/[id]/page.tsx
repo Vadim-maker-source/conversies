@@ -91,7 +91,6 @@ export default function ChatDataPage() {
     }
   }, [chatId])
 
-  // Закрытие меню при клике вне его
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (avatarMenuRef.current && !avatarMenuRef.current.contains(event.target as Node)) {
@@ -152,7 +151,6 @@ export default function ChatDataPage() {
     try {
       const uploadResult = await uploadAvatar(file)
       
-      // Обновляем аватар чата
       const updatedChat = await updateChatAvatar(chat.id, uploadResult.url)
       setChat(updatedChat)
       setShowAvatarMenu(false)
@@ -161,7 +159,6 @@ export default function ChatDataPage() {
       setError(error instanceof Error ? error.message : 'Ошибка при загрузке аватара')
     } finally {
       setUploadingAvatar(false)
-      // Сбрасываем input
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
@@ -289,7 +286,6 @@ export default function ChatDataPage() {
     setActionLoading(true)
     try {
       await joinChat(chat.id)
-      // Перезагружаем данные чата
       const updatedChat = await getChatDetails(chat.id)
       setChat(updatedChat)
     } catch (error) {
@@ -353,7 +349,6 @@ export default function ChatDataPage() {
     }
   }
 
-  // Компонент Dropdown Menu для управления участником
   const MemberDropdownMenu = ({ member }: { member: any }) => {
     const isCurrentUser = member.userId === currentUser?.id
     
@@ -452,7 +447,7 @@ export default function ChatDataPage() {
   return (
     <div className="min-h-screen bg-black/40 p-4 w-full relative">
       <div className="w-full mx-auto">
-        {/* Header */}
+        
         <div className="flex items-center justify-between mb-8">
           <button
             onClick={() => router.back()}
@@ -471,7 +466,7 @@ export default function ChatDataPage() {
         <div className="bg-black/40 rounded-xl p-6 backdrop-blur-sm mb-4 border border-gray-700 relative z-10">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-4">
-              {/* Аватар с возможностью редактирования */}
+              
               <div className="relative" ref={avatarContainerRef}>
                 <div className="relative group">
                   {getChatAvatar()}
@@ -596,7 +591,6 @@ export default function ChatDataPage() {
           {/* Действия */}
           <div className="flex space-x-3">
             {isMember === null ? (
-              // Кнопка "Вступить" для не участников
               <button
                 onClick={handleJoinChat}
                 disabled={actionLoading}
@@ -606,7 +600,6 @@ export default function ChatDataPage() {
                 <span>{actionLoading ? 'Вступление...' : 'Вступить'}</span>
               </button>
             ) : (
-              // Действия для участников
               <>
                 {canManage && (
                   <button

@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import Image from "next/image";
 
-// Вынесите основную логику в отдельный компонент
 function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,7 +17,7 @@ function SignInForm() {
   const [yandexLoading, setYandexLoading] = useState(false);
   
   const router = useRouter();
-  const searchParams = useSearchParams(); // Теперь это безопасно
+  const searchParams = useSearchParams();
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -262,7 +261,6 @@ function SignInForm() {
   );
 }
 
-// Основной компонент страницы с Suspense
 export default function SignInPage() {
   return (
     <Suspense fallback={

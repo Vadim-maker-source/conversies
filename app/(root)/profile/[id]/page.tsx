@@ -39,7 +39,6 @@ export default function ProfilePage() {
         setUser(userData)
         setCurrentUser(currentUserData)
 
-        // Проверяем, есть ли пользователь в контактах
         if (currentUserData) {
           const inContacts = await isUserInContacts(userId)
           setIsContact(inContacts)
@@ -60,7 +59,6 @@ export default function ProfilePage() {
   const handleAddContact = async () => {
     if (!user) return
   
-    // Дополнительная защита
     if (currentUser && currentUser.id === user.id) {
       setError('Нельзя добавить самого себя в контакты')
       return
@@ -107,7 +105,6 @@ export default function ProfilePage() {
     }
   }
 
-  // Функции для отображения данных
   const getDisplayName = (user: User) => {
     if (user.name && user.surname) {
       return `${user.name} ${user.surname}`

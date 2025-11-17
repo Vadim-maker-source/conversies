@@ -35,7 +35,6 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import { GiftsSection } from '@/components/GiftsSection'
 import QRScanner from '@/components/QRScanner'
-import { signIn } from 'next-auth/react'
 
 interface CoinsSectionProps {
   settings: any
@@ -312,8 +311,6 @@ function ActionSelection({
   )
 }
 
-// Компонент конкретного действия (100% ширины)
-// Компонент конкретного действия (100% ширины)
 function ActionPage({ 
   action, 
   settings, 
@@ -924,7 +921,6 @@ const handleAddCoins = async (coinsAmount: number) => {
   }
 }
 
-// Функции для 2FA:
 const handleEnableTwoFactor = async () => {
   setLoading(true)
   try {
@@ -978,7 +974,6 @@ const handleDisableTwoFactor = async () => {
   }
 }
 
-// Загрузите статус при монтировании
 useEffect(() => {
   loadTwoFactorStatus()
 }, [])
@@ -991,14 +986,12 @@ const loadTwoFactorStatus = async () => {
   useEffect(() => {
     loadSettings()
     
-    // Проверяем URL параметры
     const action = searchParams.get('action')
     if (action) {
       setCurrentAction(action)
     }
   }, [searchParams])
 
-  // Закрытие меню при клике вне его
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (avatarMenuRef.current && !avatarMenuRef.current.contains(event.target as Node)) {
@@ -1070,7 +1063,6 @@ const [qrCodeData, setQrCodeData] = useState('')
 
 const [showQRScanner, setShowQRScanner] = useState(false)
 
-// Функция для обработки отсканированного QR-кода
 const handleQRScan = async (scannedData: string) => {
   setLoading(true);
   setMessage('');
@@ -1079,7 +1071,6 @@ const handleQRScan = async (scannedData: string) => {
     const data = JSON.parse(scannedData);
     
     if (data.type === 'quick_login') {
-      // Получаем текущего пользователя (того, кто сканирует)
       const currentUser = await getCurrentUser();
       
       if (!currentUser) {
@@ -1087,7 +1078,6 @@ const handleQRScan = async (scannedData: string) => {
         return;
       }
 
-      // Связываем устройство - создаем сессию для текущего пользователя
       const result = await quickLoginWithQRCode(data.token, {
         deviceInfo: {
           browser: navigator.userAgent,
@@ -1095,7 +1085,7 @@ const handleQRScan = async (scannedData: string) => {
           type: 'web'
         },
         userAgent: navigator.userAgent
-      }, currentUser.email); // Передаем email текущего пользователя
+      }, currentUser.email);
       
       if (result.error) {
         setMessage(result.error);
@@ -1103,7 +1093,6 @@ const handleQRScan = async (scannedData: string) => {
         setMessage('Устройство успешно связано!');
         setShowQRScanner(false);
         
-        // Обновляем страницу
         router.refresh();
       }
     } else {
@@ -1117,7 +1106,6 @@ const handleQRScan = async (scannedData: string) => {
   }
 };
 
-// Функция для генерации QR-кода
 const generateLinkingQRCode = async () => {
   setLoading(true)
   setMessage('')
@@ -1128,7 +1116,6 @@ const generateLinkingQRCode = async () => {
       setMessage(result.error)
     } else {
       setMessage('QR-код сгенерирован! Токен действителен 5 минут.')
-      // Формируем данные для QR-кода
       setQrCodeData(JSON.stringify({
         type: 'device_linking',
         token: result.token,
@@ -1142,7 +1129,6 @@ const generateLinkingQRCode = async () => {
   }
 }
 
-// Функция для загрузки связанных устройств
 const loadLinkedDevices = async () => {
   const result = await getLinkedDevices()
   if (result.success) {
@@ -1150,7 +1136,6 @@ const loadLinkedDevices = async () => {
   }
 }
 
-// Функция для отвязывания устройства
 const handleRemoveDevice = async (deviceId: string) => {
   const result = await removeDeviceSession(deviceId)
   if (result.success) {
@@ -1161,7 +1146,6 @@ const handleRemoveDevice = async (deviceId: string) => {
   }
 }
 
-// Загружаем устройства при монтировании
 useEffect(() => {
   if (currentAction === 'link-devices') {
     loadLinkedDevices()
@@ -1293,7 +1277,6 @@ useEffect(() => {
     )
   }
 
-  // Если выбрано действие, показываем страницу действия, иначе - выбор действий
   if (currentAction) {
     return (
       <>

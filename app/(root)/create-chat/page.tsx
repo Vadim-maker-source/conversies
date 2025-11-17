@@ -20,14 +20,12 @@ export default function CreateChatPage() {
   const [isPrivate, setIsPrivate] = useState(false)
   const router = useRouter()
 
-  // Загружаем контакты при открытии модального окна
   useEffect(() => {
     if (isModalOpen) {
       loadContacts()
     }
   }, [isModalOpen])
 
-  // Поиск пользователей с задержкой
   useEffect(() => {
     const performSearch = async () => {
       if (!searchQuery.trim()) {
@@ -38,7 +36,6 @@ export default function CreateChatPage() {
       setSearching(true)
       try {
         const results = await searchUsers(searchQuery)
-        // Исключаем уже выбранных пользователей
         const filteredResults = results.filter(user => 
           !selectedUsers.find(selected => selected.id === user.id)
         )
@@ -117,7 +114,6 @@ export default function CreateChatPage() {
     }
   }
 
-  // Функция для получения отображаемого имени пользователя
   const getDisplayName = (user: User) => {
     if (user.name && user.surname) {
       return `${user.name} ${user.surname}`
@@ -125,14 +121,12 @@ export default function CreateChatPage() {
     return user.name || user.surname || user.email
   }
 
-  // Функция для получения инициалов пользователя
   const getUserInitials = (user: User) => {
     const first = user.name?.[0]?.toUpperCase() || ''
     const second = user.surname?.[0]?.toUpperCase() || ''
     return first + second || user.email[0].toUpperCase()
   }
 
-  // Функция для получения отображаемого имени контакта
   const getContactDisplayName = (contact: Contact) => {
     return contact.name || getDisplayName(contact.contact)
   }

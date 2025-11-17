@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { createUser } from '@/app/lib/api/user'
+import Image from 'next/image'
 
 type FormData = {
   name: string
@@ -19,6 +20,7 @@ export default function SignUpPage() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [yandexLoading, setYandexLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     name: '',
     surname: '',
@@ -27,6 +29,8 @@ export default function SignUpPage() {
     password: '',
     confirmPassword: ''
   })
+
+  const searchParams = useSearchParams();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -95,6 +99,25 @@ export default function SignUpPage() {
     }
   }
 
+  const handleYandexLogin = async () => {
+    setYandexLoading(true);
+    
+    try {
+      const result = await signIn("yandex", {
+        redirect: false,
+        callbackUrl: searchParams.get('callbackUrl') || '/',
+      });
+
+      if (result?.error) {
+        setError("Ошибка при входе через Яндекс");
+      }
+    } catch (error) {
+      setError("Ошибка при входе через Яндекс");
+    } finally {
+      setYandexLoading(false);
+    }
+  };
+
   const handleBack = () => {
     setError('')
     setStep(step - 1)
@@ -109,7 +132,6 @@ export default function SignUpPage() {
     setLoading(true)
 
     try {
-      // Создаем пользователя
       const result = await createUser({
         name: formData.name,
         surname: formData.surname,
@@ -124,7 +146,6 @@ export default function SignUpPage() {
         return
       }
 
-      // Автоматически логиним пользователя после регистрации
       const signInResult = await signIn('credentials', {
         email: formData.email,
         password: formData.password,
@@ -135,7 +156,7 @@ export default function SignUpPage() {
         setError('Ошибка при входе. Пожалуйста, войдите вручную.')
         router.push('/sign-in')
       } else {
-        router.push('/dashboard') // или на любую другую страницу после входа
+        router.push('/dashboard')
       }
     } catch (err) {
       setError('Произошла ошибка при регистрации')
@@ -146,6 +167,18 @@ export default function SignUpPage() {
   }
 
   return (
+    <Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
+            <div className="w-full max-w-md">
+              <div className="w-full p-6 bg-black/40 backdrop-blur-sm rounded-xl border border-gray-700 shadow-2xl">
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                  <span className="text-white">Загрузка...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        }>
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-[340px] md:w-sm space-y-8 bg-black/40 py-6 px-14 rounded-2xl">
         <div>
@@ -206,6 +239,24 @@ export default function SignUpPage() {
                   placeholder="Введите вашу фамилию"
                 />
               </div>
+                          <div className="relative my-4">
+                            <div className="absolute inset-0 flex items-center">
+                              <div className="w-full border-t border-gray-600"></div>
+                            </div>
+                            <div className="relative flex justify-center text-sm">
+                              <span className="px-2 bg-black/40 text-gray-400">или</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleYandexLogin}
+                            disabled={yandexLoading}
+                            className="w-full mb-4 bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-600 transition-all duration-200 font-medium flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                          >
+                            <Image src="/assets/images/Yandex_icon.svg.png" alt="Яндекс" width={30} height={30} />
+                            <span>
+                              {yandexLoading ? "Вход..." : "Войти через Яндекс"}
+                            </span>
+                          </button>
             </div>
           )}
 
@@ -322,5 +373,6 @@ export default function SignUpPage() {
         </form>
       </div>
     </div>
+    </Suspense>
   )
 }
