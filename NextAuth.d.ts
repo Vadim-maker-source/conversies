@@ -1,3 +1,4 @@
+// NextAuth.d.ts
 import NextAuth from "next-auth"
 
 declare module "next-auth" {
@@ -6,24 +7,22 @@ declare module "next-auth" {
       id: number
       name?: string | null
       email?: string | null
-      image?: string | null
-    }
+    } & DefaultSession["user"]
     accessToken?: string
     provider?: string
   }
 
-  interface User {
+  interface User extends DefaultUser {
     id: string
     name?: string | null
     email: string
-    image?: string | null
   }
 
   interface Profile {
     login?: string
     client_id?: string
     default_email?: string
-    emails?: { value: string }[]
+    emails?: string[]
     default_avatar_id?: string
     is_avatar_empty?: boolean
     psuid?: string
@@ -41,7 +40,7 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
-    id?: string
+    id: string
     accessToken?: string
     provider?: string
     yandexProfile?: Profile

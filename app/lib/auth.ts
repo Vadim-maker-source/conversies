@@ -1,36 +1,41 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/app/lib/prisma";
 import { compare } from "bcryptjs";
-import { AuthOptions, SessionStrategy } from "next-auth";
+import { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import YandexProvider from "next-auth/providers/yandex";
+import { sendTwoFactorCode, verifyTwoFactorCode } from "./api/user";
 
 export const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma as any),
+  adapter: PrismaAdapter(prisma as unknown as any),
   session: {
-    strategy: "jwt" as SessionStrategy,
+    strategy: "jwt",
   },
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
     YandexProvider({
       clientId: process.env.YANDEX_CLIENT_ID!,
       clientSecret: process.env.YANDEX_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: "login:email login:info"
+        }
+      }
     }),
     CredentialsProvider({
-      id: "credentials",
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
         twoFactorCode: { label: "2FA Code", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email) {
           throw new Error("Введите email");
         }
 
-        // QR-логин
         if (credentials.password === "qr_login") {
+          // QR-логин - ищем пользователя по email
           const user = await prisma.user.findUnique({
             where: { email: credentials.email },
           });
@@ -52,18 +57,25 @@ export const authOptions: AuthOptions = {
           where: { email: credentials.email },
         });
 
-        if (!user || !user.password) {
-          throw new Error("Неверный email или пароль");
-        }
+        if (!user || !user.password) throw new Error("Неверный email или пароль");
 
         const isValid = await compare(credentials.password, user.password);
-        if (!isValid) {
-          throw new Error("Неверный email или пароль");
-        }
+        if (!isValid) throw new Error("Неверный email или пароль");
 
-        // Упрощенная проверка 2FA для демонстрации
-        if (user.twoFactorEnabled && !credentials.twoFactorCode) {
-          throw new Error("2FA_REQUIRED");
+        // Проверяем включена ли 2FA
+        if (user.twoFactorEnabled) {
+          if (!credentials.twoFactorCode) {
+            const result = await sendTwoFactorCode(credentials.email);
+            if (result.error) {
+              throw new Error(result.error);
+            }
+            throw new Error("2FA_REQUIRED");
+          }
+
+          const verificationResult = await verifyTwoFactorCode(credentials.email, credentials.twoFactorCode);
+          if (verificationResult.error) {
+            throw new Error(verificationResult.error);
+          }
         }
 
         return {
@@ -76,18 +88,26 @@ export const authOptions: AuthOptions = {
   ],
   pages: {
     signIn: "/sign-in",
-    signOut: "/",
     error: "/sign-in",
   },
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, profile }) {
+      // Сохраняем данные пользователя в токен при первом входе
       if (user) {
         token.id = user.id;
       }
+      
+      // Для OAuth сохраняем access token
       if (account) {
         token.accessToken = account.access_token;
         token.provider = account.provider;
       }
+      
+      // Для Яндекс OAuth получаем дополнительные данные
+      if (profile && account?.provider === "yandex") {
+        token.yandexProfile = profile;
+      }
+      
       return token;
     },
 
@@ -104,15 +124,17 @@ export const authOptions: AuthOptions = {
       return session;
     },
 
-    async signIn({ user, account, profile }) {
-      // Для Яндекс OAuth
+    async signIn({ user, account, profile, email }) {
+      // Разрешаем вход через Яндекс OAuth
       if (account?.provider === "yandex") {
         try {
+          // Проверяем, существует ли пользователь с таким email
           const existingUser = await prisma.user.findUnique({
             where: { email: user.email! },
           });
     
           if (existingUser) {
+            // Проверяем, есть ли уже привязанный Яндекс аккаунт
             const existingAccount = await prisma.account.findFirst({
               where: {
                 userId: existingUser.id,
@@ -121,6 +143,7 @@ export const authOptions: AuthOptions = {
             });
     
             if (!existingAccount) {
+              // Создаем связь аккаунта для существующего пользователя
               await prisma.account.create({
                 data: {
                   userId: existingUser.id,
@@ -134,7 +157,19 @@ export const authOptions: AuthOptions = {
                 },
               });
             }
+    
+            // Обновляем данные пользователя
+            await prisma.user.update({
+              where: { id: existingUser.id },
+              data: {
+                name: profile?.real_name || profile?.display_name || existingUser.name,
+                avatar: profile?.default_avatar_id 
+                  ? `https://avatars.yandex.net/get-yapic/${profile.default_avatar_id}/islands-200` 
+                  : existingUser.avatar,
+              },
+            });
           } else {
+            // Если пользователь не существует, создаем нового
             const newUser = await prisma.user.create({
               data: {
                 name: profile?.real_name || profile?.display_name || user.name,
@@ -145,6 +180,7 @@ export const authOptions: AuthOptions = {
               },
             });
     
+            // Создаем связь аккаунта
             await prisma.account.create({
               data: {
                 userId: newUser.id,
@@ -159,11 +195,13 @@ export const authOptions: AuthOptions = {
             });
           }
         } catch (error) {
-          console.error('Yandex OAuth error:', error);
+          console.error('Error during Yandex OAuth sign in:', error);
           return false;
         }
+        return true;
       }
       
+      // Для credentials provider проверяем 2FA
       return true;
     },
   },
