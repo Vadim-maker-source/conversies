@@ -121,11 +121,11 @@ export default function SnowflakeGame({ onComplete, onClose }: SnowflakeGameProp
 
     if (item.type === 'snowflake') {
       // За снежинку +100 очков
-      setScore(prev => prev + 100)
+      setScore(prev => prev + 25)
     } else {
       // За бомбу -250 очков
       setScore(prev => {
-        const newScore = prev - 250
+        const newScore = prev - 150
         
         // Проверяем, не ушли ли мы в слишком большой минус
         if (newScore < -originalPoints) {
@@ -202,9 +202,9 @@ export default function SnowflakeGame({ onComplete, onClose }: SnowflakeGameProp
             <div className="text-white font-semibold">Предметы</div>
             <div className="flex space-x-2 text-sm">
               <FontAwesomeIcon icon={faSnowflake} className="w-4 h-4 text-blue-300" />
-              <span className="text-white">+100</span>
+              <span className="text-white">+25</span>
               <FontAwesomeIcon icon={faBomb} className="w-4 h-4 text-red-500" />
-              <span className="text-white">-250</span>
+              <span className="text-white">-150</span>
             </div>
           </div>
         </div>
@@ -288,11 +288,11 @@ export default function SnowflakeGame({ onComplete, onClose }: SnowflakeGameProp
                     <div className="text-left space-y-3 mb-6 bg-white/10 p-4 rounded-lg">
                       <p className="flex items-center">
                         <FontAwesomeIcon icon={faSnowflake} className="w-5 h-5 text-blue-300 mr-2" />
-                        <span>Кликайте на снежинки: <span className="text-green-400">+100 очков</span></span>
+                        <span>Кликайте на снежинки: <span className="text-green-400">+25 очков</span></span>
                       </p>
                       <p className="flex items-center">
                         <FontAwesomeIcon icon={faBomb} className="w-5 h-5 text-red-500 mr-2" />
-                        <span>Избегайте бомбы: <span className="text-red-400">-250 очков</span></span>
+                        <span>Избегайте бомбы: <span className="text-red-400">-150 очков</span></span>
                       </p>
                       <p className="flex items-center">
                         <span className="w-5 h-5 text-yellow-400 mr-2">⏱️</span>

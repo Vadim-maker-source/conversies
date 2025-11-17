@@ -22,7 +22,6 @@ const Topbar = () => {
         checkAuth()
     }, [])
 
-    // Проверяем есть ли новые ивенты
     const checkNewEvents = () => {
         const eventViewed = localStorage.getItem('eventViewed')
         setHasNewEvents(!eventViewed)

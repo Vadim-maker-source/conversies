@@ -70,11 +70,11 @@ export interface GiftData {
     { id: 29, name: "Шляпа", price: 3200, description: "Шляпа ведьмы" },
     { id: 30, name: "Вечность", price: 3471, description: "Дар вечности" },
 
-    { id: 31, name: "Снежинка", price: 500, description: "Космическая загадка" },
-    { id: 32, name: "Снеговик", price: 2500, description: "Мифическая птица" },
-    { id: 33, name: "Санта Клаус", price: 2700, description: "Легендарный дракон" },
-    { id: 34, name: "Рождественская ёлка", price: 4100, description: "Волшебный единорог" },
-    { id: 36, name: "Новый год!", price: 5672, description: "Шляпа ведьмы" },
+    { id: 31, name: "Снежинка", price: 0, description: "Космическая загадка" },
+    { id: 32, name: "Снеговик", price: 0, description: "Мифическая птица" },
+    { id: 33, name: "Санта Клаус", price: 0, description: "Легендарный дракон" },
+    { id: 34, name: "Рождественская ёлка", price: 0, description: "Волшебный единорог" },
+    { id: 35, name: "Новый год!", price: 0, description: "Шляпа ведьмы" },
   ]
   
   export function getGiftById(id: number): GiftData | undefined {

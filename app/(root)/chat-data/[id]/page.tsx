@@ -254,7 +254,6 @@ export default function ChatDataPage() {
     setActionLoading(true)
     try {
       await leaveChat(chat.id)
-      router.push('/')
     } catch (error) {
       console.error('Error leaving chat:', error)
       setError(error instanceof Error ? error.message : 'Ошибка при выходе из чата')
@@ -338,7 +337,7 @@ export default function ChatDataPage() {
   const isOwner = getCurrentUserRole() === 'OWNER'
   const isAdmin = getCurrentUserRole() === 'ADMIN'
   const canManage = isOwner || isAdmin
-  const isMember = getCurrentUserRole() !== null
+  const isMember = getCurrentUserRole() !== undefined
 
   const getRoleText = (role: string) => {
     switch (role) {
@@ -590,7 +589,7 @@ export default function ChatDataPage() {
 
           {/* Действия */}
           <div className="flex space-x-3">
-            {isMember === null ? (
+            {!isMember ? (
               <button
                 onClick={handleJoinChat}
                 disabled={actionLoading}

@@ -145,7 +145,7 @@ export default function Sidebar() {
 
   const getChatAvatar = (chat: ChatWithDetails | SearchChat) => {
     if (chat.type === 'GROUP') {
-      if(chat.type === 'GROUP' && chat.avatar) return <img src={String(chat.avatar)} alt="" className="rounded-full" />
+      if(chat.type === 'GROUP' && chat.avatar) return <img src={String(chat.avatar)} alt="" className="rounded-full h-full w-full" />
       else return '👥' 
     }
 

@@ -239,24 +239,6 @@ export default function SignUpPage() {
                   placeholder="Введите вашу фамилию"
                 />
               </div>
-                          <div className="relative my-4">
-                            <div className="absolute inset-0 flex items-center">
-                              <div className="w-full border-t border-gray-600"></div>
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                              <span className="px-2 bg-black/40 text-gray-400">или</span>
-                            </div>
-                          </div>
-                          <button
-                            onClick={handleYandexLogin}
-                            disabled={yandexLoading}
-                            className="w-full mb-4 bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-600 transition-all duration-200 font-medium flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
-                          >
-                            <Image src="/assets/images/Yandex_icon.svg.png" alt="Яндекс" width={30} height={30} />
-                            <span>
-                              {yandexLoading ? "Вход..." : "Войти через Яндекс"}
-                            </span>
-                          </button>
             </div>
           )}
 
@@ -361,6 +343,25 @@ export default function SignUpPage() {
               </button>
             )}
           </div>
+
+          <div className="relative my-4">
+                            <div className="absolute inset-0 flex items-center">
+                              <div className="w-full border-t border-gray-600"></div>
+                            </div>
+                            <div className="relative flex justify-center text-sm">
+                              <span className="px-2 bg-black/40 text-gray-400">или</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleYandexLogin}
+                            disabled={yandexLoading}
+                            className="w-full mb-4 bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-600 transition-all duration-200 font-medium flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                          >
+                            <Image src="/assets/images/Yandex_icon.svg.png" alt="Яндекс" width={30} height={30} />
+                            <span>
+                              {yandexLoading ? "Вход..." : "Войти через Яндекс"}
+                            </span>
+                          </button>
 
           <div className="text-center">
             <a

@@ -9,6 +9,8 @@ import { getCurrentUser } from '@/app/lib/api/user'
 import { User } from '@/app/lib/types'
 import { AnimateIcon } from '@/components/animate-ui/icons/icon'
 import { MessageSquareMore } from '@/components/animate-ui/icons/message-square-more'
+import { Plus } from '@/components/animate-ui/icons/plus'
+import { Trash2 } from '@/components/animate-ui/icons/trash-2'
 
 export default function ProfilePage() {
   const params = useParams()
@@ -123,7 +125,7 @@ export default function ProfilePage() {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
-    })
+    }) || "Неизвестно"
   }
 
   if (loading) {
@@ -179,7 +181,7 @@ export default function ProfilePage() {
           {/* Аватар и основная информация */}
           <div className="flex flex-col items-center mb-6">
             <div className="w-24 h-24 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4">
-              {getUserInitials(user)}
+              <img src={String(user.avatar)} alt={String(user.name)} className="rounded-full" />
             </div>
             <h2 className="text-2xl font-bold text-white text-center">
               {getDisplayName(user)}
@@ -209,10 +211,6 @@ export default function ProfilePage() {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">В сети:</span>
-                  <span className="text-green-400">Online</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-gray-400">Зарегистрирован:</span>
                   <span className="text-white">{formatDate(String(user.createdAt))}</span>
                 </div>
@@ -222,55 +220,59 @@ export default function ProfilePage() {
 
           {/* Кнопки действий */}
           {!isOwnProfile && currentUser && (
-            <div className="space-y-3">
+            <div className="gap-3">
               {isContact ? (
+                <AnimateIcon animateOnHover>
                 <button
                   onClick={handleRemoveContact}
                   disabled={actionLoading}
-                  className="w-full bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+                  className="w-full bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-400 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
                 >
                   {actionLoading ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   ) : (
                     <>
-                      <span>🗑️</span>
+                      <Trash2 />
                       <span>Удалить из контактов</span>
                     </>
                   )}
                 </button>
+                </AnimateIcon>
               ) : (
+                <AnimateIcon animateOnHover>
                 <button
                   onClick={handleAddContact}
                   disabled={actionLoading}
-                  className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+                  className="w-full bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-400 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
                 >
                   {actionLoading ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   ) : (
                     <>
-                      <span>➕</span>
+                        <Plus />
                       <span>Добавить в контакты</span>
                     </>
                   )}
                 </button>
+                </AnimateIcon>
               )}
               
+              <AnimateIcon animateOnHover>
               <button
                 onClick={handleStartChat}
                 disabled={actionLoading}
-                className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+                className="w-full bg-red-500 mt-3.5 text-white py-3 px-4 rounded-lg hover:bg-red-400 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
               >
                 {actionLoading ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 ) : (
                   <>
-                  <AnimateIcon animateOnHover>
-                    <span><MessageSquareMore /></span>
-                    <span>Написать сообщение</span>
-                    </AnimateIcon>
+                      <span><MessageSquareMore /></span>
+                      <span>Написать сообщение</span>
                   </>
                 )}
               </button>
+              </AnimateIcon>
             </div>
           )}
 
