@@ -30,6 +30,7 @@ export async function searchUsers(query: string) {
         id: true,
         name: true,
         surname: true,
+        bio: true,
         email: true,
         phone: true,
         avatar: true,
