@@ -156,7 +156,7 @@ export default function SignUpPage() {
         setError('Ошибка при входе. Пожалуйста, войдите вручную.')
         router.push('/sign-in')
       } else {
-        router.push('/dashboard')
+        router.push('/submain')
       }
     } catch (err) {
       setError('Произошла ошибка при регистрации')

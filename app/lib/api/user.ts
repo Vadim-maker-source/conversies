@@ -382,6 +382,7 @@ export async function getUserById(id: number) {
         id: true,
         name: true,
         surname: true,
+        bio: true,
         email: true,
         phone: true,
         isPremium: true,
@@ -451,9 +452,10 @@ export async function updateUserSettings(formData: FormData) {
 
     const name = formData.get('name') as string
     const surname = formData.get('surname') as string
+    const bio = formData.get('about') as string
     
-    if (!name || !surname) {
-      return { error: 'Имя и фамилия обязательны' }
+    if (!name) {
+      return { error: 'Имя обязательно' }
     }
 
     const updatedUser = await prisma.user.update({
@@ -463,11 +465,13 @@ export async function updateUserSettings(formData: FormData) {
       data: {
         name,
         surname,
+        bio
       },
       select: {
         id: true,
         name: true,
         surname: true,
+        bio: true,
         email: true,
         phone: true,
         isPremium: true,

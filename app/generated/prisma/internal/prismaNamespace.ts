@@ -403,7 +403,10 @@ export const ModelName = {
   Contact: 'Contact',
   Reaction: 'Reaction',
   Gift: 'Gift',
-  EventProgress: 'EventProgress'
+  EventProgress: 'EventProgress',
+  Bot: 'Bot',
+  BotGame: 'BotGame',
+  BotVote: 'BotVote'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -419,7 +422,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "account" | "session" | "verificationToken" | "deviceLinkingToken" | "deviceSession" | "chat" | "chatMember" | "message" | "messageRead" | "contact" | "reaction" | "gift" | "eventProgress"
+    modelProps: "user" | "account" | "session" | "verificationToken" | "deviceLinkingToken" | "deviceSession" | "chat" | "chatMember" | "message" | "messageRead" | "contact" | "reaction" | "gift" | "eventProgress" | "bot" | "botGame" | "botVote"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1459,6 +1462,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    Bot: {
+      payload: Prisma.$BotPayload<ExtArgs>
+      fields: Prisma.BotFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.BotFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.BotFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotPayload>
+        }
+        findFirst: {
+          args: Prisma.BotFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.BotFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotPayload>
+        }
+        findMany: {
+          args: Prisma.BotFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotPayload>[]
+        }
+        create: {
+          args: Prisma.BotCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotPayload>
+        }
+        createMany: {
+          args: Prisma.BotCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.BotCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotPayload>[]
+        }
+        delete: {
+          args: Prisma.BotDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotPayload>
+        }
+        update: {
+          args: Prisma.BotUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotPayload>
+        }
+        deleteMany: {
+          args: Prisma.BotDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.BotUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.BotUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotPayload>[]
+        }
+        upsert: {
+          args: Prisma.BotUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotPayload>
+        }
+        aggregate: {
+          args: Prisma.BotAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateBot>
+        }
+        groupBy: {
+          args: Prisma.BotGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BotGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.BotCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BotCountAggregateOutputType> | number
+        }
+      }
+    }
+    BotGame: {
+      payload: Prisma.$BotGamePayload<ExtArgs>
+      fields: Prisma.BotGameFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.BotGameFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotGamePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.BotGameFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotGamePayload>
+        }
+        findFirst: {
+          args: Prisma.BotGameFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotGamePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.BotGameFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotGamePayload>
+        }
+        findMany: {
+          args: Prisma.BotGameFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotGamePayload>[]
+        }
+        create: {
+          args: Prisma.BotGameCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotGamePayload>
+        }
+        createMany: {
+          args: Prisma.BotGameCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.BotGameCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotGamePayload>[]
+        }
+        delete: {
+          args: Prisma.BotGameDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotGamePayload>
+        }
+        update: {
+          args: Prisma.BotGameUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotGamePayload>
+        }
+        deleteMany: {
+          args: Prisma.BotGameDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.BotGameUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.BotGameUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotGamePayload>[]
+        }
+        upsert: {
+          args: Prisma.BotGameUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotGamePayload>
+        }
+        aggregate: {
+          args: Prisma.BotGameAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateBotGame>
+        }
+        groupBy: {
+          args: Prisma.BotGameGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BotGameGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.BotGameCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BotGameCountAggregateOutputType> | number
+        }
+      }
+    }
+    BotVote: {
+      payload: Prisma.$BotVotePayload<ExtArgs>
+      fields: Prisma.BotVoteFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.BotVoteFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotVotePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.BotVoteFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotVotePayload>
+        }
+        findFirst: {
+          args: Prisma.BotVoteFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotVotePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.BotVoteFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotVotePayload>
+        }
+        findMany: {
+          args: Prisma.BotVoteFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotVotePayload>[]
+        }
+        create: {
+          args: Prisma.BotVoteCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotVotePayload>
+        }
+        createMany: {
+          args: Prisma.BotVoteCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.BotVoteCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotVotePayload>[]
+        }
+        delete: {
+          args: Prisma.BotVoteDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotVotePayload>
+        }
+        update: {
+          args: Prisma.BotVoteUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotVotePayload>
+        }
+        deleteMany: {
+          args: Prisma.BotVoteDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.BotVoteUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.BotVoteUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotVotePayload>[]
+        }
+        upsert: {
+          args: Prisma.BotVoteUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BotVotePayload>
+        }
+        aggregate: {
+          args: Prisma.BotVoteAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateBotVote>
+        }
+        groupBy: {
+          args: Prisma.BotVoteGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BotVoteGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.BotVoteCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BotVoteCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1618,6 +1843,8 @@ export const MessageScalarFieldEnum = {
   fileUrl: 'fileUrl',
   isEdited: 'isEdited',
   isShared: 'isShared',
+  botId: 'botId',
+  pollId: 'pollId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -1687,6 +1914,49 @@ export const EventProgressScalarFieldEnum = {
 } as const
 
 export type EventProgressScalarFieldEnum = (typeof EventProgressScalarFieldEnum)[keyof typeof EventProgressScalarFieldEnum]
+
+
+export const BotScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  avatar: 'avatar',
+  isActive: 'isActive',
+  webhookUrl: 'webhookUrl',
+  token: 'token',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BotScalarFieldEnum = (typeof BotScalarFieldEnum)[keyof typeof BotScalarFieldEnum]
+
+
+export const BotGameScalarFieldEnum = {
+  id: 'id',
+  botId: 'botId',
+  chatId: 'chatId',
+  type: 'type',
+  title: 'title',
+  question: 'question',
+  options: 'options',
+  correctAnswer: 'correctAnswer',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt'
+} as const
+
+export type BotGameScalarFieldEnum = (typeof BotGameScalarFieldEnum)[keyof typeof BotGameScalarFieldEnum]
+
+
+export const BotVoteScalarFieldEnum = {
+  id: 'id',
+  gameId: 'gameId',
+  userId: 'userId',
+  optionIndex: 'optionIndex',
+  votedAt: 'votedAt'
+} as const
+
+export type BotVoteScalarFieldEnum = (typeof BotVoteScalarFieldEnum)[keyof typeof BotVoteScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1811,6 +2081,20 @@ export type ListEnumGiftStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$P
 
 
 /**
+ * Reference to a field of type 'GameType'
+ */
+export type EnumGameTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GameType'>
+    
+
+
+/**
+ * Reference to a field of type 'GameType[]'
+ */
+export type ListEnumGameTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GameType[]'>
+    
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -1924,6 +2208,9 @@ export type GlobalOmitConfig = {
   reaction?: Prisma.ReactionOmit
   gift?: Prisma.GiftOmit
   eventProgress?: Prisma.EventProgressOmit
+  bot?: Prisma.BotOmit
+  botGame?: Prisma.BotGameOmit
+  botVote?: Prisma.BotVoteOmit
 }
 
 /* Types for Logging */

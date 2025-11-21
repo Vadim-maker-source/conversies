@@ -44,10 +44,6 @@ export { Prisma }
 path.join(__dirname, "query_engine-windows.dll.node")
 path.join(process.cwd(), "app/generated/prisma/query_engine-windows.dll.node")
 
-// file annotations for bundling tools to include these files
-path.join(__dirname, "libquery_engine-rhel-openssl-3.0.x.so.node")
-path.join(process.cwd(), "app/generated/prisma/libquery_engine-rhel-openssl-3.0.x.so.node")
-
 /**
  * Model User
  * 
@@ -118,3 +114,18 @@ export type Gift = Prisma.GiftModel
  * 
  */
 export type EventProgress = Prisma.EventProgressModel
+/**
+ * Model Bot
+ * 
+ */
+export type Bot = Prisma.BotModel
+/**
+ * Model BotGame
+ * 
+ */
+export type BotGame = Prisma.BotGameModel
+/**
+ * Model BotVote
+ * 
+ */
+export type BotVote = Prisma.BotVoteModel

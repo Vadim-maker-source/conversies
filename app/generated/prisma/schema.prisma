@@ -1,0 +1,369 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../app/generated/prisma"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int     @id @default(autoincrement())
+  name             String?
+  surname          String?
+  email            String  @unique
+  phone            String?
+  password         String?
+  avatar           String?
+  isPremium        Boolean @default(false)
+  notificationMode String? @default("normal")
+  twoFactorEnabled Boolean @default(false)
+  coins            Int     @default(0)
+
+  accounts Account[]
+
+  // Поля для 2FA
+  twoFactorCode    String?
+  twoFactorExpires DateTime?
+
+  sentGifts     Gift[] @relation("SentGifts")
+  receivedGifts Gift[] @relation("ReceivedGifts")
+
+  chatMembers ChatMember[]
+  messages    Message[]
+
+  contactsOwned Contact[] @relation("ContactsOwned")
+  contactsAdded Contact[] @relation("ContactsAdded")
+
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  Reaction            Reaction[]
+  MessageRead         MessageRead[]
+  deviceLinkingTokens DeviceLinkingToken[]
+  deviceSessions      DeviceSession[]
+  eventProgresses     EventProgress[]
+  sessions            Session[]
+  pollVotes           PollVote[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       Int
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model DeviceLinkingToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int? // Сделаем опциональным
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@map("device_linking_tokens")
+}
+
+model DeviceSession {
+  id         Int     @id @default(autoincrement())
+  userId     Int
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId   String  @unique // Уникальный идентификатор устройства
+  deviceInfo String? // Информация об устройстве
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt  DateTime @default(now())
+  lastActive DateTime @default(now())
+
+  @@map("device_sessions")
+}
+
+model Chat {
+  id              Int          @id @default(autoincrement())
+  name            String?
+  type            ChatType     @default(PRIVATE)
+  isChannel       Boolean      @default(false)
+  avatar          String?
+  isPrivate       Boolean?     @default(false)
+  pinnedMessageId Int?         @unique
+  // Участники чата
+  members         ChatMember[]
+  messages        Message[]
+  pinnedMessage   Message?     @relation("PinnedMessage", fields: [pinnedMessageId], references: [id]) // Связь для закрепленного сообщения
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  botMembers BotMember[]
+
+  polls Poll[]
+}
+
+model ChatMember {
+  id     Int      @id @default(autoincrement())
+  userId Int
+  chatId Int
+  role   ChatRole @default(MEMBER)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chatId])
+  @@map("chat_members")
+}
+
+model Message {
+  id                Int    @id @default(autoincrement())
+  content           String
+  userId            Int
+  chatId            Int
+  messageId         Int?
+  originalMessageId Int?
+
+  imageUrl String?
+  fileUrl  String?
+
+  isEdited Boolean @default(false)
+  isShared Boolean @default(false)
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat            Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  replyTo         Message?  @relation("MessageReplies", fields: [messageId], references: [id])
+  replies         Message[] @relation("MessageReplies")
+  originalMessage Message?  @relation("MessageShares", fields: [originalMessageId], references: [id])
+  sharedMessages  Message[] @relation("MessageShares")
+  pinnedIn        Chat?     @relation("PinnedMessage")
+
+  botId  Int?
+  pollId Int?
+
+  bot  Bot?  @relation(fields: [botId], references: [id])
+  poll Poll? @relation(fields: [pollId], references: [id])
+
+  readBy MessageRead[]
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  Reaction  Reaction[]
+
+  @@map("messages")
+}
+
+model MessageRead {
+  id        Int      @id @default(autoincrement())
+  messageId Int
+  userId    Int
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@map("message_reads")
+}
+
+enum ChatType {
+  PRIVATE
+  GROUP
+}
+
+enum ChatRole {
+  MEMBER
+  ADMIN
+  OWNER
+}
+
+model Contact {
+  id        Int     @id @default(autoincrement())
+  ownerId   Int // пользователь, который добавил в контакты
+  contactId Int // пользователь, который добавлен в контакты
+  name      String? // кастомное имя для контакта
+  notes     String? // заметки о контакте
+
+  // Связи
+  owner   User @relation("ContactsOwned", fields: [ownerId], references: [id], onDelete: Cascade)
+  contact User @relation("ContactsAdded", fields: [contactId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, contactId])
+  @@map("contacts")
+}
+
+model Reaction {
+  id        Int    @id @default(autoincrement())
+  messageId Int
+  userId    Int
+  emoji     String // Эмодзи реакция
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@map("reactions")
+}
+
+model Gift {
+  id      Int     @id @default(autoincrement())
+  giftId  Int // ID подарка из assets (1-30)
+  price   Int // Стоимость подарка в монетах
+  message String? // Сообщение с подарком
+
+  // Кто подарил и кому
+  senderId   Int
+  receiverId Int
+
+  // Статус подарка у получателя
+  status GiftStatus @default(ACTIVE) // ACTIVE, REDEEMED, REGIFTED
+
+  // Для передаренных подарков
+  originalGiftId   Int? // ID оригинального подарка, если это передаренный
+  regiftReceiverId Int? // Кому переподарили
+
+  sender       User  @relation("SentGifts", fields: [senderId], references: [id])
+  receiver     User  @relation("ReceivedGifts", fields: [receiverId], references: [id])
+  originalGift Gift? @relation("OriginalGift", fields: [originalGiftId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Gift      Gift[]   @relation("OriginalGift")
+
+  @@map("gifts")
+}
+
+enum GiftStatus {
+  ACTIVE // Активный подарок
+  REDEEMED // Обналичен
+  REGIFTED // Переподарен
+}
+
+model EventProgress {
+  id                Int     @id @default(autoincrement())
+  userId            Int
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType         String // "winter_2024"
+  points            Int     @default(0)
+  claimedMilestones String? // JSON массив с полученными наградами
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, eventType])
+  @@map("event_progress")
+}
+
+model Bot {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+  avatar      String?
+  isActive    Boolean @default(true)
+  webhookUrl  String? // Для внешних ботов
+  token       String  @unique @default(cuid()) // API токен бота
+
+  // Связи
+  botMembers BotMember[]
+  messages   Message[]
+  polls      Poll[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("bots")
+}
+
+// Участники-боты в чатах
+model BotMember {
+  id     Int      @id @default(autoincrement())
+  botId  Int
+  chatId Int
+  role   ChatRole @default(MEMBER)
+
+  bot  Bot  @relation(fields: [botId], references: [id], onDelete: Cascade)
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([botId, chatId])
+  @@map("bot_members")
+}
+
+// Модель для опросов/голосований
+model Poll {
+  id             Int      @id @default(autoincrement())
+  botId          Int
+  chatId         Int
+  question       String
+  options        String[] // JSON массив вариантов ответов
+  correctAnswer  Int? // Индекс правильного ответа (для викторин)
+  isActive       Boolean  @default(true)
+  isAnonymous    Boolean  @default(false)
+  allowsMultiple Boolean  @default(false)
+
+  // Связи
+  bot      Bot        @relation(fields: [botId], references: [id])
+  chat     Chat       @relation(fields: [chatId], references: [id])
+  votes    PollVote[]
+  messages Message[] // Сообщения с опросами
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime? // Время окончания опроса
+
+  @@map("polls")
+}
+
+// Голоса в опросах
+model PollVote {
+  id          Int      @id @default(autoincrement())
+  pollId      Int
+  userId      Int? // Может быть null для анонимных голосов
+  optionIndex Int // Индекс выбранного варианта
+  votedAt     DateTime @default(now())
+
+  // Связи
+  poll Poll  @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId]) // Один голос на пользователя в опросе
+  @@map("poll_votes")
+}

@@ -2,6 +2,7 @@ export type User = {
     id: number
     name: string | null
     surname: string | null
+    bio: string | null
     email: string
     phone: string | null
     avatar?: string | null
@@ -58,7 +59,7 @@ export type User = {
   
   export type ChatMember = {
     id: number
-    userId: number
+    userId: number | null
     chatId: number
     role: 'MEMBER' | 'ADMIN' | 'OWNER'
     user: User
@@ -67,7 +68,8 @@ export type User = {
   export interface Message {
     id: number;
     content: string;
-    userId: number;
+    userId: number | null;
+    botId: number | null;
     chatId: number;
     messageId: number | null;
     imageUrl: string | null;
@@ -77,6 +79,7 @@ export type User = {
     createdAt: Date;
     updatedAt: Date;
     user: User;
+    bot?: Bot | null
     replyTo?: Message;
     
     // Update these to match your actual data structure
@@ -95,6 +98,7 @@ export type User = {
     isReadByCurrentUser?: boolean;
     originalMessage?: Message;
     originalMessageId?: number | null;
+    pollId?: number | null;
   }
   
   export type ChatWithDetails = Chat & {
@@ -123,4 +127,15 @@ export interface Reaction {
   emoji: string
   user: User
   createdAt: string
+}
+
+export type Bot = {
+  id: number
+  name: string
+  description?: string | null
+  avatar?: string | null
+  isActive: boolean
+  token: string
+  createdAt: Date
+  updatedAt: Date
 }

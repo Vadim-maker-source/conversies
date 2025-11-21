@@ -62,7 +62,10 @@ export const ModelName = {
   Contact: 'Contact',
   Reaction: 'Reaction',
   Gift: 'Gift',
-  EventProgress: 'EventProgress'
+  EventProgress: 'EventProgress',
+  Bot: 'Bot',
+  BotGame: 'BotGame',
+  BotVote: 'BotVote'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -201,6 +204,8 @@ export const MessageScalarFieldEnum = {
   fileUrl: 'fileUrl',
   isEdited: 'isEdited',
   isShared: 'isShared',
+  botId: 'botId',
+  pollId: 'pollId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -270,6 +275,49 @@ export const EventProgressScalarFieldEnum = {
 } as const
 
 export type EventProgressScalarFieldEnum = (typeof EventProgressScalarFieldEnum)[keyof typeof EventProgressScalarFieldEnum]
+
+
+export const BotScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  avatar: 'avatar',
+  isActive: 'isActive',
+  webhookUrl: 'webhookUrl',
+  token: 'token',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BotScalarFieldEnum = (typeof BotScalarFieldEnum)[keyof typeof BotScalarFieldEnum]
+
+
+export const BotGameScalarFieldEnum = {
+  id: 'id',
+  botId: 'botId',
+  chatId: 'chatId',
+  type: 'type',
+  title: 'title',
+  question: 'question',
+  options: 'options',
+  correctAnswer: 'correctAnswer',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt'
+} as const
+
+export type BotGameScalarFieldEnum = (typeof BotGameScalarFieldEnum)[keyof typeof BotGameScalarFieldEnum]
+
+
+export const BotVoteScalarFieldEnum = {
+  id: 'id',
+  gameId: 'gameId',
+  userId: 'userId',
+  optionIndex: 'optionIndex',
+  votedAt: 'votedAt'
+} as const
+
+export type BotVoteScalarFieldEnum = (typeof BotVoteScalarFieldEnum)[keyof typeof BotVoteScalarFieldEnum]
 
 
 export const SortOrder = {

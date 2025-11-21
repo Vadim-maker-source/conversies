@@ -204,7 +204,7 @@ function PinnedMessage({
               Закреплено
             </span>
             <span className="text-xs text-gray-600">
-              {pinnedMessage.user.name} {pinnedMessage.user.surname}
+              {pinnedMessage?.user.name} {pinnedMessage?.user.surname}
             </span>
             <span className="text-xs text-gray-400">
               {new Date(pinnedMessage.createdAt).toLocaleDateString('ru-RU', {

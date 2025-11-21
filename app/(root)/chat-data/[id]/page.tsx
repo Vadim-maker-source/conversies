@@ -544,13 +544,13 @@ export default function ChatDataPage() {
                       type="text"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
-                      className="bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
                       placeholder="Введите название чата"
                     />
                     <button
                       onClick={handleUpdateChat}
                       disabled={actionLoading}
-                      className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors cursor-pointer"
+                      className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-400 disabled:opacity-50 transition-colors cursor-pointer"
                     >
                       {actionLoading ? '...' : 'OK'}
                     </button>

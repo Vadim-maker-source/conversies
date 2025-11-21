@@ -87,3 +87,18 @@ export type Gift = Prisma.GiftModel
  * 
  */
 export type EventProgress = Prisma.EventProgressModel
+/**
+ * Model Bot
+ * 
+ */
+export type Bot = Prisma.BotModel
+/**
+ * Model BotGame
+ * 
+ */
+export type BotGame = Prisma.BotGameModel
+/**
+ * Model BotVote
+ * 
+ */
+export type BotVote = Prisma.BotVoteModel

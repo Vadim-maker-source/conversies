@@ -195,6 +195,11 @@ export default function ProfilePage() {
             )}
           </div>
 
+          <div className="flex flex-col text-white mb-6 py-3 px-5 bg-gray-500/40 rounded-2xl">
+            <span className="text-blue-300 font-semibold">О себе:</span>
+            <p>{user.bio}</p>
+          </div>
+
           {/* Дополнительная информация */}
           <div className="space-y-4 mb-6">
             <div className="bg-gray-700/30 rounded-lg p-4">

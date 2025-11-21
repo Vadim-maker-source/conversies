@@ -6,13 +6,13 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
   id               Int      @id @default(autoincrement())
   name             String?
   surname          String?
+  bio              String?
   email            String   @unique
   phone            String?
   password         String?
@@ -47,6 +47,7 @@ model User {
   deviceSessions DeviceSession[]
   eventProgresses EventProgress[]
   sessions Session[]
+  botVotes BotVote[]
 }
 
 model Account {
@@ -131,6 +132,8 @@ model Chat {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  botGames BotGame[]
 }
 
 model ChatMember {
@@ -151,16 +154,14 @@ model Message {
   content          String
   userId           Int
   chatId           Int
-  messageId        Int?     // Для ответов на сообщения
-  originalMessageId Int?    // Для пересылки сообщений
+  messageId        Int?
+  originalMessageId Int?
   
-  // Медиа файлы
   imageUrl String?
   fileUrl  String?
   
-  // Статус сообщения
   isEdited Boolean @default(false)
-  isShared Boolean @default(false) // Пометка о пересланном сообщении
+  isShared Boolean @default(false)
   
   user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   chat            Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
@@ -168,9 +169,13 @@ model Message {
   replies         Message[] @relation("MessageReplies")
   originalMessage Message? @relation("MessageShares", fields: [originalMessageId], references: [id])
   sharedMessages  Message[] @relation("MessageShares")
-  pinnedIn        Chat?     @relation("PinnedMessage") // Связь для закрепленных сообщений
+  pinnedIn        Chat?     @relation("PinnedMessage")
   
-  // Отслеживание прочтения
+  botId    Int?
+  pollId   Int?
+  
+  bot      Bot?  @relation(fields: [botId], references: [id])
+
   readBy          MessageRead[]
   
   createdAt DateTime @default(now())
@@ -284,4 +289,69 @@ model EventProgress {
 
   @@unique([userId, eventType])
   @@map("event_progress")
+}
+
+model Bot {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  avatar      String?
+  isActive    Boolean  @default(true)
+  webhookUrl  String?  // Для внешних ботов
+  token       String   @unique @default(cuid()) // Токен для API
+  
+  // Сообщения от бота
+  messages    Message[]
+  
+  // Игры и опросы, созданные ботом
+  games       BotGame[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("bots")
+}
+
+model BotGame {
+  id          Int      @id @default(autoincrement())
+  botId       Int
+  chatId      Int
+  type        GameType // QUESTION, POLL, QUIZ
+  title       String
+  question    String
+  options     String[] // JSON массив вариантов ответов
+  correctAnswer Int?   // Индекс правильного ответа для квизов
+  isActive    Boolean  @default(true)
+  
+  bot         Bot   @relation(fields: [botId], references: [id], onDelete: Cascade)
+  chat        Chat  @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  
+  // Голоса пользователей
+  votes       BotVote[]
+  
+  createdAt DateTime @default(now())
+  expiresAt DateTime? // Когда игра завершается
+  
+  @@unique([botId, chatId, title])
+  @@map("bot_games")
+}
+
+model BotVote {
+  id        Int      @id @default(autoincrement())
+  gameId    Int
+  userId    Int
+  optionIndex Int    // Выбранный вариант (0, 1, 2...)
+  votedAt   DateTime @default(now())
+  
+  game BotGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([gameId, userId])
+  @@map("bot_votes")
+}
+
+enum GameType {
+  QUESTION
+  POLL
+  QUIZ
 }

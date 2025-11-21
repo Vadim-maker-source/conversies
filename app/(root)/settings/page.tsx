@@ -556,6 +556,19 @@ function ActionPage({
                 </div>
               </div>
 
+              <div className="mb-6">
+                  <label className="block text-white text-sm font-medium mb-2">
+                    О себе
+                  </label>
+                  <textarea
+                    value={settings.about}
+                    onChange={(e) => setSettings((prev: any) => ({ ...prev, about: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 border border-gray-600"
+                    placeholder="Расскажите о себе"
+                    required
+                  />
+                </div>
+
               <button
                 onClick={onUpdateProfile}
                 disabled={loading}
@@ -868,6 +881,7 @@ function SettingsContent() {
   const [settings, setSettings] = useState({
     name: '',
     surname: '',
+    about: '',
     avatar: '',
     isPremium: false,
     coins: 0
@@ -909,6 +923,7 @@ const handleAddCoins = async (coinsAmount: number) => {
       if (updatedSettings) {
         setSettings({name: updatedSettings.name || '',
           surname: updatedSettings.surname || '',
+          about: updatedSettings.bio || '',
           avatar: updatedSettings.avatar || '',
           isPremium: updatedSettings.isPremium || false,
           coins: updatedSettings.coins || 0})
@@ -1015,6 +1030,7 @@ const loadTwoFactorStatus = async () => {
         setSettings({
           name: String(userSettings.name) || String(''),
           surname: userSettings.surname || '',
+          about: String(userSettings.bio) || '',
           avatar: userSettings.avatar || '',
           isPremium: userSettings.isPremium || false,
           coins: Number(userSettings.coins)
@@ -1044,6 +1060,7 @@ const loadTwoFactorStatus = async () => {
       const formData = new FormData()
       formData.append('name', settings.name)
       formData.append('surname', settings.surname)
+      formData.append('about', settings.about)
 
       const result = await updateUserSettings(formData)
       if (result.error) {

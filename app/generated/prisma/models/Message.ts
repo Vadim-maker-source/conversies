@@ -32,6 +32,8 @@ export type MessageAvgAggregateOutputType = {
   chatId: number | null
   messageId: number | null
   originalMessageId: number | null
+  botId: number | null
+  pollId: number | null
 }
 
 export type MessageSumAggregateOutputType = {
@@ -40,6 +42,8 @@ export type MessageSumAggregateOutputType = {
   chatId: number | null
   messageId: number | null
   originalMessageId: number | null
+  botId: number | null
+  pollId: number | null
 }
 
 export type MessageMinAggregateOutputType = {
@@ -53,6 +57,8 @@ export type MessageMinAggregateOutputType = {
   fileUrl: string | null
   isEdited: boolean | null
   isShared: boolean | null
+  botId: number | null
+  pollId: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -68,6 +74,8 @@ export type MessageMaxAggregateOutputType = {
   fileUrl: string | null
   isEdited: boolean | null
   isShared: boolean | null
+  botId: number | null
+  pollId: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -83,6 +91,8 @@ export type MessageCountAggregateOutputType = {
   fileUrl: number
   isEdited: number
   isShared: number
+  botId: number
+  pollId: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -95,6 +105,8 @@ export type MessageAvgAggregateInputType = {
   chatId?: true
   messageId?: true
   originalMessageId?: true
+  botId?: true
+  pollId?: true
 }
 
 export type MessageSumAggregateInputType = {
@@ -103,6 +115,8 @@ export type MessageSumAggregateInputType = {
   chatId?: true
   messageId?: true
   originalMessageId?: true
+  botId?: true
+  pollId?: true
 }
 
 export type MessageMinAggregateInputType = {
@@ -116,6 +130,8 @@ export type MessageMinAggregateInputType = {
   fileUrl?: true
   isEdited?: true
   isShared?: true
+  botId?: true
+  pollId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -131,6 +147,8 @@ export type MessageMaxAggregateInputType = {
   fileUrl?: true
   isEdited?: true
   isShared?: true
+  botId?: true
+  pollId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -146,6 +164,8 @@ export type MessageCountAggregateInputType = {
   fileUrl?: true
   isEdited?: true
   isShared?: true
+  botId?: true
+  pollId?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -248,6 +268,8 @@ export type MessageGroupByOutputType = {
   fileUrl: string | null
   isEdited: boolean
   isShared: boolean
+  botId: number | null
+  pollId: number | null
   createdAt: Date
   updatedAt: Date
   _count: MessageCountAggregateOutputType | null
@@ -286,6 +308,8 @@ export type MessageWhereInput = {
   fileUrl?: Prisma.StringNullableFilter<"Message"> | string | null
   isEdited?: Prisma.BoolFilter<"Message"> | boolean
   isShared?: Prisma.BoolFilter<"Message"> | boolean
+  botId?: Prisma.IntNullableFilter<"Message"> | number | null
+  pollId?: Prisma.IntNullableFilter<"Message"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -295,6 +319,7 @@ export type MessageWhereInput = {
   originalMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
   sharedMessages?: Prisma.MessageListRelationFilter
   pinnedIn?: Prisma.XOR<Prisma.ChatNullableScalarRelationFilter, Prisma.ChatWhereInput> | null
+  bot?: Prisma.XOR<Prisma.BotNullableScalarRelationFilter, Prisma.BotWhereInput> | null
   readBy?: Prisma.MessageReadListRelationFilter
   Reaction?: Prisma.ReactionListRelationFilter
 }
@@ -310,6 +335,8 @@ export type MessageOrderByWithRelationInput = {
   fileUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   isEdited?: Prisma.SortOrder
   isShared?: Prisma.SortOrder
+  botId?: Prisma.SortOrderInput | Prisma.SortOrder
+  pollId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -319,6 +346,7 @@ export type MessageOrderByWithRelationInput = {
   originalMessage?: Prisma.MessageOrderByWithRelationInput
   sharedMessages?: Prisma.MessageOrderByRelationAggregateInput
   pinnedIn?: Prisma.ChatOrderByWithRelationInput
+  bot?: Prisma.BotOrderByWithRelationInput
   readBy?: Prisma.MessageReadOrderByRelationAggregateInput
   Reaction?: Prisma.ReactionOrderByRelationAggregateInput
 }
@@ -337,6 +365,8 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   fileUrl?: Prisma.StringNullableFilter<"Message"> | string | null
   isEdited?: Prisma.BoolFilter<"Message"> | boolean
   isShared?: Prisma.BoolFilter<"Message"> | boolean
+  botId?: Prisma.IntNullableFilter<"Message"> | number | null
+  pollId?: Prisma.IntNullableFilter<"Message"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -346,6 +376,7 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   originalMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
   sharedMessages?: Prisma.MessageListRelationFilter
   pinnedIn?: Prisma.XOR<Prisma.ChatNullableScalarRelationFilter, Prisma.ChatWhereInput> | null
+  bot?: Prisma.XOR<Prisma.BotNullableScalarRelationFilter, Prisma.BotWhereInput> | null
   readBy?: Prisma.MessageReadListRelationFilter
   Reaction?: Prisma.ReactionListRelationFilter
 }, "id">
@@ -361,6 +392,8 @@ export type MessageOrderByWithAggregationInput = {
   fileUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   isEdited?: Prisma.SortOrder
   isShared?: Prisma.SortOrder
+  botId?: Prisma.SortOrderInput | Prisma.SortOrder
+  pollId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.MessageCountOrderByAggregateInput
@@ -384,6 +417,8 @@ export type MessageScalarWhereWithAggregatesInput = {
   fileUrl?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
   isEdited?: Prisma.BoolWithAggregatesFilter<"Message"> | boolean
   isShared?: Prisma.BoolWithAggregatesFilter<"Message"> | boolean
+  botId?: Prisma.IntNullableWithAggregatesFilter<"Message"> | number | null
+  pollId?: Prisma.IntNullableWithAggregatesFilter<"Message"> | number | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Message"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Message"> | Date | string
 }
@@ -394,6 +429,7 @@ export type MessageCreateInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutMessagesInput
@@ -403,6 +439,7 @@ export type MessageCreateInput = {
   originalMessage?: Prisma.MessageCreateNestedOneWithoutSharedMessagesInput
   sharedMessages?: Prisma.MessageCreateNestedManyWithoutOriginalMessageInput
   pinnedIn?: Prisma.ChatCreateNestedOneWithoutPinnedMessageInput
+  bot?: Prisma.BotCreateNestedOneWithoutMessagesInput
   readBy?: Prisma.MessageReadCreateNestedManyWithoutMessageInput
   Reaction?: Prisma.ReactionCreateNestedManyWithoutMessageInput
 }
@@ -418,6 +455,8 @@ export type MessageUncheckedCreateInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToInput
@@ -433,6 +472,7 @@ export type MessageUpdateInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutMessagesNestedInput
@@ -442,6 +482,7 @@ export type MessageUpdateInput = {
   originalMessage?: Prisma.MessageUpdateOneWithoutSharedMessagesNestedInput
   sharedMessages?: Prisma.MessageUpdateManyWithoutOriginalMessageNestedInput
   pinnedIn?: Prisma.ChatUpdateOneWithoutPinnedMessageNestedInput
+  bot?: Prisma.BotUpdateOneWithoutMessagesNestedInput
   readBy?: Prisma.MessageReadUpdateManyWithoutMessageNestedInput
   Reaction?: Prisma.ReactionUpdateManyWithoutMessageNestedInput
 }
@@ -457,6 +498,8 @@ export type MessageUncheckedUpdateInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToNestedInput
@@ -477,6 +520,8 @@ export type MessageCreateManyInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -487,6 +532,7 @@ export type MessageUpdateManyMutationInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -502,6 +548,8 @@ export type MessageUncheckedUpdateManyInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -532,6 +580,8 @@ export type MessageCountOrderByAggregateInput = {
   fileUrl?: Prisma.SortOrder
   isEdited?: Prisma.SortOrder
   isShared?: Prisma.SortOrder
+  botId?: Prisma.SortOrder
+  pollId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -542,6 +592,8 @@ export type MessageAvgOrderByAggregateInput = {
   chatId?: Prisma.SortOrder
   messageId?: Prisma.SortOrder
   originalMessageId?: Prisma.SortOrder
+  botId?: Prisma.SortOrder
+  pollId?: Prisma.SortOrder
 }
 
 export type MessageMaxOrderByAggregateInput = {
@@ -555,6 +607,8 @@ export type MessageMaxOrderByAggregateInput = {
   fileUrl?: Prisma.SortOrder
   isEdited?: Prisma.SortOrder
   isShared?: Prisma.SortOrder
+  botId?: Prisma.SortOrder
+  pollId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -570,6 +624,8 @@ export type MessageMinOrderByAggregateInput = {
   fileUrl?: Prisma.SortOrder
   isEdited?: Prisma.SortOrder
   isShared?: Prisma.SortOrder
+  botId?: Prisma.SortOrder
+  pollId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -580,6 +636,8 @@ export type MessageSumOrderByAggregateInput = {
   chatId?: Prisma.SortOrder
   messageId?: Prisma.SortOrder
   originalMessageId?: Prisma.SortOrder
+  botId?: Prisma.SortOrder
+  pollId?: Prisma.SortOrder
 }
 
 export type MessageScalarRelationFilter = {
@@ -831,12 +889,55 @@ export type MessageUpdateOneRequiredWithoutReactionNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutReactionInput, Prisma.MessageUpdateWithoutReactionInput>, Prisma.MessageUncheckedUpdateWithoutReactionInput>
 }
 
+export type MessageCreateNestedManyWithoutBotInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutBotInput, Prisma.MessageUncheckedCreateWithoutBotInput> | Prisma.MessageCreateWithoutBotInput[] | Prisma.MessageUncheckedCreateWithoutBotInput[]
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutBotInput | Prisma.MessageCreateOrConnectWithoutBotInput[]
+  createMany?: Prisma.MessageCreateManyBotInputEnvelope
+  connect?: Prisma.MessageWhereUniqueInput | Prisma.MessageWhereUniqueInput[]
+}
+
+export type MessageUncheckedCreateNestedManyWithoutBotInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutBotInput, Prisma.MessageUncheckedCreateWithoutBotInput> | Prisma.MessageCreateWithoutBotInput[] | Prisma.MessageUncheckedCreateWithoutBotInput[]
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutBotInput | Prisma.MessageCreateOrConnectWithoutBotInput[]
+  createMany?: Prisma.MessageCreateManyBotInputEnvelope
+  connect?: Prisma.MessageWhereUniqueInput | Prisma.MessageWhereUniqueInput[]
+}
+
+export type MessageUpdateManyWithoutBotNestedInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutBotInput, Prisma.MessageUncheckedCreateWithoutBotInput> | Prisma.MessageCreateWithoutBotInput[] | Prisma.MessageUncheckedCreateWithoutBotInput[]
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutBotInput | Prisma.MessageCreateOrConnectWithoutBotInput[]
+  upsert?: Prisma.MessageUpsertWithWhereUniqueWithoutBotInput | Prisma.MessageUpsertWithWhereUniqueWithoutBotInput[]
+  createMany?: Prisma.MessageCreateManyBotInputEnvelope
+  set?: Prisma.MessageWhereUniqueInput | Prisma.MessageWhereUniqueInput[]
+  disconnect?: Prisma.MessageWhereUniqueInput | Prisma.MessageWhereUniqueInput[]
+  delete?: Prisma.MessageWhereUniqueInput | Prisma.MessageWhereUniqueInput[]
+  connect?: Prisma.MessageWhereUniqueInput | Prisma.MessageWhereUniqueInput[]
+  update?: Prisma.MessageUpdateWithWhereUniqueWithoutBotInput | Prisma.MessageUpdateWithWhereUniqueWithoutBotInput[]
+  updateMany?: Prisma.MessageUpdateManyWithWhereWithoutBotInput | Prisma.MessageUpdateManyWithWhereWithoutBotInput[]
+  deleteMany?: Prisma.MessageScalarWhereInput | Prisma.MessageScalarWhereInput[]
+}
+
+export type MessageUncheckedUpdateManyWithoutBotNestedInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutBotInput, Prisma.MessageUncheckedCreateWithoutBotInput> | Prisma.MessageCreateWithoutBotInput[] | Prisma.MessageUncheckedCreateWithoutBotInput[]
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutBotInput | Prisma.MessageCreateOrConnectWithoutBotInput[]
+  upsert?: Prisma.MessageUpsertWithWhereUniqueWithoutBotInput | Prisma.MessageUpsertWithWhereUniqueWithoutBotInput[]
+  createMany?: Prisma.MessageCreateManyBotInputEnvelope
+  set?: Prisma.MessageWhereUniqueInput | Prisma.MessageWhereUniqueInput[]
+  disconnect?: Prisma.MessageWhereUniqueInput | Prisma.MessageWhereUniqueInput[]
+  delete?: Prisma.MessageWhereUniqueInput | Prisma.MessageWhereUniqueInput[]
+  connect?: Prisma.MessageWhereUniqueInput | Prisma.MessageWhereUniqueInput[]
+  update?: Prisma.MessageUpdateWithWhereUniqueWithoutBotInput | Prisma.MessageUpdateWithWhereUniqueWithoutBotInput[]
+  updateMany?: Prisma.MessageUpdateManyWithWhereWithoutBotInput | Prisma.MessageUpdateManyWithWhereWithoutBotInput[]
+  deleteMany?: Prisma.MessageScalarWhereInput | Prisma.MessageScalarWhereInput[]
+}
+
 export type MessageCreateWithoutUserInput = {
   content: string
   imageUrl?: string | null
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   chat: Prisma.ChatCreateNestedOneWithoutMessagesInput
@@ -845,6 +946,7 @@ export type MessageCreateWithoutUserInput = {
   originalMessage?: Prisma.MessageCreateNestedOneWithoutSharedMessagesInput
   sharedMessages?: Prisma.MessageCreateNestedManyWithoutOriginalMessageInput
   pinnedIn?: Prisma.ChatCreateNestedOneWithoutPinnedMessageInput
+  bot?: Prisma.BotCreateNestedOneWithoutMessagesInput
   readBy?: Prisma.MessageReadCreateNestedManyWithoutMessageInput
   Reaction?: Prisma.ReactionCreateNestedManyWithoutMessageInput
 }
@@ -859,6 +961,8 @@ export type MessageUncheckedCreateWithoutUserInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToInput
@@ -908,6 +1012,8 @@ export type MessageScalarWhereInput = {
   fileUrl?: Prisma.StringNullableFilter<"Message"> | string | null
   isEdited?: Prisma.BoolFilter<"Message"> | boolean
   isShared?: Prisma.BoolFilter<"Message"> | boolean
+  botId?: Prisma.IntNullableFilter<"Message"> | number | null
+  pollId?: Prisma.IntNullableFilter<"Message"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Message"> | Date | string
 }
@@ -918,6 +1024,7 @@ export type MessageCreateWithoutChatInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutMessagesInput
@@ -926,6 +1033,7 @@ export type MessageCreateWithoutChatInput = {
   originalMessage?: Prisma.MessageCreateNestedOneWithoutSharedMessagesInput
   sharedMessages?: Prisma.MessageCreateNestedManyWithoutOriginalMessageInput
   pinnedIn?: Prisma.ChatCreateNestedOneWithoutPinnedMessageInput
+  bot?: Prisma.BotCreateNestedOneWithoutMessagesInput
   readBy?: Prisma.MessageReadCreateNestedManyWithoutMessageInput
   Reaction?: Prisma.ReactionCreateNestedManyWithoutMessageInput
 }
@@ -940,6 +1048,8 @@ export type MessageUncheckedCreateWithoutChatInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToInput
@@ -965,6 +1075,7 @@ export type MessageCreateWithoutPinnedInInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutMessagesInput
@@ -973,6 +1084,7 @@ export type MessageCreateWithoutPinnedInInput = {
   replies?: Prisma.MessageCreateNestedManyWithoutReplyToInput
   originalMessage?: Prisma.MessageCreateNestedOneWithoutSharedMessagesInput
   sharedMessages?: Prisma.MessageCreateNestedManyWithoutOriginalMessageInput
+  bot?: Prisma.BotCreateNestedOneWithoutMessagesInput
   readBy?: Prisma.MessageReadCreateNestedManyWithoutMessageInput
   Reaction?: Prisma.ReactionCreateNestedManyWithoutMessageInput
 }
@@ -988,6 +1100,8 @@ export type MessageUncheckedCreateWithoutPinnedInInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToInput
@@ -1034,6 +1148,7 @@ export type MessageUpdateWithoutPinnedInInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutMessagesNestedInput
@@ -1042,6 +1157,7 @@ export type MessageUpdateWithoutPinnedInInput = {
   replies?: Prisma.MessageUpdateManyWithoutReplyToNestedInput
   originalMessage?: Prisma.MessageUpdateOneWithoutSharedMessagesNestedInput
   sharedMessages?: Prisma.MessageUpdateManyWithoutOriginalMessageNestedInput
+  bot?: Prisma.BotUpdateOneWithoutMessagesNestedInput
   readBy?: Prisma.MessageReadUpdateManyWithoutMessageNestedInput
   Reaction?: Prisma.ReactionUpdateManyWithoutMessageNestedInput
 }
@@ -1057,6 +1173,8 @@ export type MessageUncheckedUpdateWithoutPinnedInInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToNestedInput
@@ -1071,6 +1189,7 @@ export type MessageCreateWithoutRepliesInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutMessagesInput
@@ -1079,6 +1198,7 @@ export type MessageCreateWithoutRepliesInput = {
   originalMessage?: Prisma.MessageCreateNestedOneWithoutSharedMessagesInput
   sharedMessages?: Prisma.MessageCreateNestedManyWithoutOriginalMessageInput
   pinnedIn?: Prisma.ChatCreateNestedOneWithoutPinnedMessageInput
+  bot?: Prisma.BotCreateNestedOneWithoutMessagesInput
   readBy?: Prisma.MessageReadCreateNestedManyWithoutMessageInput
   Reaction?: Prisma.ReactionCreateNestedManyWithoutMessageInput
 }
@@ -1094,6 +1214,8 @@ export type MessageUncheckedCreateWithoutRepliesInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   sharedMessages?: Prisma.MessageUncheckedCreateNestedManyWithoutOriginalMessageInput
@@ -1113,6 +1235,7 @@ export type MessageCreateWithoutReplyToInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutMessagesInput
@@ -1121,6 +1244,7 @@ export type MessageCreateWithoutReplyToInput = {
   originalMessage?: Prisma.MessageCreateNestedOneWithoutSharedMessagesInput
   sharedMessages?: Prisma.MessageCreateNestedManyWithoutOriginalMessageInput
   pinnedIn?: Prisma.ChatCreateNestedOneWithoutPinnedMessageInput
+  bot?: Prisma.BotCreateNestedOneWithoutMessagesInput
   readBy?: Prisma.MessageReadCreateNestedManyWithoutMessageInput
   Reaction?: Prisma.ReactionCreateNestedManyWithoutMessageInput
 }
@@ -1135,6 +1259,8 @@ export type MessageUncheckedCreateWithoutReplyToInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToInput
@@ -1160,6 +1286,7 @@ export type MessageCreateWithoutSharedMessagesInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutMessagesInput
@@ -1168,6 +1295,7 @@ export type MessageCreateWithoutSharedMessagesInput = {
   replies?: Prisma.MessageCreateNestedManyWithoutReplyToInput
   originalMessage?: Prisma.MessageCreateNestedOneWithoutSharedMessagesInput
   pinnedIn?: Prisma.ChatCreateNestedOneWithoutPinnedMessageInput
+  bot?: Prisma.BotCreateNestedOneWithoutMessagesInput
   readBy?: Prisma.MessageReadCreateNestedManyWithoutMessageInput
   Reaction?: Prisma.ReactionCreateNestedManyWithoutMessageInput
 }
@@ -1183,6 +1311,8 @@ export type MessageUncheckedCreateWithoutSharedMessagesInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToInput
@@ -1202,6 +1332,7 @@ export type MessageCreateWithoutOriginalMessageInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutMessagesInput
@@ -1210,6 +1341,7 @@ export type MessageCreateWithoutOriginalMessageInput = {
   replies?: Prisma.MessageCreateNestedManyWithoutReplyToInput
   sharedMessages?: Prisma.MessageCreateNestedManyWithoutOriginalMessageInput
   pinnedIn?: Prisma.ChatCreateNestedOneWithoutPinnedMessageInput
+  bot?: Prisma.BotCreateNestedOneWithoutMessagesInput
   readBy?: Prisma.MessageReadCreateNestedManyWithoutMessageInput
   Reaction?: Prisma.ReactionCreateNestedManyWithoutMessageInput
 }
@@ -1224,6 +1356,8 @@ export type MessageUncheckedCreateWithoutOriginalMessageInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToInput
@@ -1260,6 +1394,7 @@ export type MessageUpdateWithoutRepliesInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutMessagesNestedInput
@@ -1268,6 +1403,7 @@ export type MessageUpdateWithoutRepliesInput = {
   originalMessage?: Prisma.MessageUpdateOneWithoutSharedMessagesNestedInput
   sharedMessages?: Prisma.MessageUpdateManyWithoutOriginalMessageNestedInput
   pinnedIn?: Prisma.ChatUpdateOneWithoutPinnedMessageNestedInput
+  bot?: Prisma.BotUpdateOneWithoutMessagesNestedInput
   readBy?: Prisma.MessageReadUpdateManyWithoutMessageNestedInput
   Reaction?: Prisma.ReactionUpdateManyWithoutMessageNestedInput
 }
@@ -1283,6 +1419,8 @@ export type MessageUncheckedUpdateWithoutRepliesInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sharedMessages?: Prisma.MessageUncheckedUpdateManyWithoutOriginalMessageNestedInput
@@ -1324,6 +1462,7 @@ export type MessageUpdateWithoutSharedMessagesInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutMessagesNestedInput
@@ -1332,6 +1471,7 @@ export type MessageUpdateWithoutSharedMessagesInput = {
   replies?: Prisma.MessageUpdateManyWithoutReplyToNestedInput
   originalMessage?: Prisma.MessageUpdateOneWithoutSharedMessagesNestedInput
   pinnedIn?: Prisma.ChatUpdateOneWithoutPinnedMessageNestedInput
+  bot?: Prisma.BotUpdateOneWithoutMessagesNestedInput
   readBy?: Prisma.MessageReadUpdateManyWithoutMessageNestedInput
   Reaction?: Prisma.ReactionUpdateManyWithoutMessageNestedInput
 }
@@ -1347,6 +1487,8 @@ export type MessageUncheckedUpdateWithoutSharedMessagesInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToNestedInput
@@ -1377,6 +1519,7 @@ export type MessageCreateWithoutReadByInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutMessagesInput
@@ -1386,6 +1529,7 @@ export type MessageCreateWithoutReadByInput = {
   originalMessage?: Prisma.MessageCreateNestedOneWithoutSharedMessagesInput
   sharedMessages?: Prisma.MessageCreateNestedManyWithoutOriginalMessageInput
   pinnedIn?: Prisma.ChatCreateNestedOneWithoutPinnedMessageInput
+  bot?: Prisma.BotCreateNestedOneWithoutMessagesInput
   Reaction?: Prisma.ReactionCreateNestedManyWithoutMessageInput
 }
 
@@ -1400,6 +1544,8 @@ export type MessageUncheckedCreateWithoutReadByInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToInput
@@ -1430,6 +1576,7 @@ export type MessageUpdateWithoutReadByInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutMessagesNestedInput
@@ -1439,6 +1586,7 @@ export type MessageUpdateWithoutReadByInput = {
   originalMessage?: Prisma.MessageUpdateOneWithoutSharedMessagesNestedInput
   sharedMessages?: Prisma.MessageUpdateManyWithoutOriginalMessageNestedInput
   pinnedIn?: Prisma.ChatUpdateOneWithoutPinnedMessageNestedInput
+  bot?: Prisma.BotUpdateOneWithoutMessagesNestedInput
   Reaction?: Prisma.ReactionUpdateManyWithoutMessageNestedInput
 }
 
@@ -1453,6 +1601,8 @@ export type MessageUncheckedUpdateWithoutReadByInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToNestedInput
@@ -1467,6 +1617,7 @@ export type MessageCreateWithoutReactionInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutMessagesInput
@@ -1476,6 +1627,7 @@ export type MessageCreateWithoutReactionInput = {
   originalMessage?: Prisma.MessageCreateNestedOneWithoutSharedMessagesInput
   sharedMessages?: Prisma.MessageCreateNestedManyWithoutOriginalMessageInput
   pinnedIn?: Prisma.ChatCreateNestedOneWithoutPinnedMessageInput
+  bot?: Prisma.BotCreateNestedOneWithoutMessagesInput
   readBy?: Prisma.MessageReadCreateNestedManyWithoutMessageInput
 }
 
@@ -1490,6 +1642,8 @@ export type MessageUncheckedCreateWithoutReactionInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToInput
@@ -1520,6 +1674,7 @@ export type MessageUpdateWithoutReactionInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutMessagesNestedInput
@@ -1529,6 +1684,7 @@ export type MessageUpdateWithoutReactionInput = {
   originalMessage?: Prisma.MessageUpdateOneWithoutSharedMessagesNestedInput
   sharedMessages?: Prisma.MessageUpdateManyWithoutOriginalMessageNestedInput
   pinnedIn?: Prisma.ChatUpdateOneWithoutPinnedMessageNestedInput
+  bot?: Prisma.BotUpdateOneWithoutMessagesNestedInput
   readBy?: Prisma.MessageReadUpdateManyWithoutMessageNestedInput
 }
 
@@ -1543,12 +1699,81 @@ export type MessageUncheckedUpdateWithoutReactionInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToNestedInput
   sharedMessages?: Prisma.MessageUncheckedUpdateManyWithoutOriginalMessageNestedInput
   pinnedIn?: Prisma.ChatUncheckedUpdateOneWithoutPinnedMessageNestedInput
   readBy?: Prisma.MessageReadUncheckedUpdateManyWithoutMessageNestedInput
+}
+
+export type MessageCreateWithoutBotInput = {
+  content: string
+  imageUrl?: string | null
+  fileUrl?: string | null
+  isEdited?: boolean
+  isShared?: boolean
+  pollId?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutMessagesInput
+  chat: Prisma.ChatCreateNestedOneWithoutMessagesInput
+  replyTo?: Prisma.MessageCreateNestedOneWithoutRepliesInput
+  replies?: Prisma.MessageCreateNestedManyWithoutReplyToInput
+  originalMessage?: Prisma.MessageCreateNestedOneWithoutSharedMessagesInput
+  sharedMessages?: Prisma.MessageCreateNestedManyWithoutOriginalMessageInput
+  pinnedIn?: Prisma.ChatCreateNestedOneWithoutPinnedMessageInput
+  readBy?: Prisma.MessageReadCreateNestedManyWithoutMessageInput
+  Reaction?: Prisma.ReactionCreateNestedManyWithoutMessageInput
+}
+
+export type MessageUncheckedCreateWithoutBotInput = {
+  id?: number
+  content: string
+  userId: number
+  chatId: number
+  messageId?: number | null
+  originalMessageId?: number | null
+  imageUrl?: string | null
+  fileUrl?: string | null
+  isEdited?: boolean
+  isShared?: boolean
+  pollId?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToInput
+  sharedMessages?: Prisma.MessageUncheckedCreateNestedManyWithoutOriginalMessageInput
+  pinnedIn?: Prisma.ChatUncheckedCreateNestedOneWithoutPinnedMessageInput
+  readBy?: Prisma.MessageReadUncheckedCreateNestedManyWithoutMessageInput
+  Reaction?: Prisma.ReactionUncheckedCreateNestedManyWithoutMessageInput
+}
+
+export type MessageCreateOrConnectWithoutBotInput = {
+  where: Prisma.MessageWhereUniqueInput
+  create: Prisma.XOR<Prisma.MessageCreateWithoutBotInput, Prisma.MessageUncheckedCreateWithoutBotInput>
+}
+
+export type MessageCreateManyBotInputEnvelope = {
+  data: Prisma.MessageCreateManyBotInput | Prisma.MessageCreateManyBotInput[]
+  skipDuplicates?: boolean
+}
+
+export type MessageUpsertWithWhereUniqueWithoutBotInput = {
+  where: Prisma.MessageWhereUniqueInput
+  update: Prisma.XOR<Prisma.MessageUpdateWithoutBotInput, Prisma.MessageUncheckedUpdateWithoutBotInput>
+  create: Prisma.XOR<Prisma.MessageCreateWithoutBotInput, Prisma.MessageUncheckedCreateWithoutBotInput>
+}
+
+export type MessageUpdateWithWhereUniqueWithoutBotInput = {
+  where: Prisma.MessageWhereUniqueInput
+  data: Prisma.XOR<Prisma.MessageUpdateWithoutBotInput, Prisma.MessageUncheckedUpdateWithoutBotInput>
+}
+
+export type MessageUpdateManyWithWhereWithoutBotInput = {
+  where: Prisma.MessageScalarWhereInput
+  data: Prisma.XOR<Prisma.MessageUpdateManyMutationInput, Prisma.MessageUncheckedUpdateManyWithoutBotInput>
 }
 
 export type MessageCreateManyUserInput = {
@@ -1561,6 +1786,8 @@ export type MessageCreateManyUserInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1571,6 +1798,7 @@ export type MessageUpdateWithoutUserInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   chat?: Prisma.ChatUpdateOneRequiredWithoutMessagesNestedInput
@@ -1579,6 +1807,7 @@ export type MessageUpdateWithoutUserInput = {
   originalMessage?: Prisma.MessageUpdateOneWithoutSharedMessagesNestedInput
   sharedMessages?: Prisma.MessageUpdateManyWithoutOriginalMessageNestedInput
   pinnedIn?: Prisma.ChatUpdateOneWithoutPinnedMessageNestedInput
+  bot?: Prisma.BotUpdateOneWithoutMessagesNestedInput
   readBy?: Prisma.MessageReadUpdateManyWithoutMessageNestedInput
   Reaction?: Prisma.ReactionUpdateManyWithoutMessageNestedInput
 }
@@ -1593,6 +1822,8 @@ export type MessageUncheckedUpdateWithoutUserInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToNestedInput
@@ -1612,6 +1843,8 @@ export type MessageUncheckedUpdateManyWithoutUserInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1626,6 +1859,8 @@ export type MessageCreateManyChatInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1636,6 +1871,7 @@ export type MessageUpdateWithoutChatInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutMessagesNestedInput
@@ -1644,6 +1880,7 @@ export type MessageUpdateWithoutChatInput = {
   originalMessage?: Prisma.MessageUpdateOneWithoutSharedMessagesNestedInput
   sharedMessages?: Prisma.MessageUpdateManyWithoutOriginalMessageNestedInput
   pinnedIn?: Prisma.ChatUpdateOneWithoutPinnedMessageNestedInput
+  bot?: Prisma.BotUpdateOneWithoutMessagesNestedInput
   readBy?: Prisma.MessageReadUpdateManyWithoutMessageNestedInput
   Reaction?: Prisma.ReactionUpdateManyWithoutMessageNestedInput
 }
@@ -1658,6 +1895,8 @@ export type MessageUncheckedUpdateWithoutChatInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToNestedInput
@@ -1677,6 +1916,8 @@ export type MessageUncheckedUpdateManyWithoutChatInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1691,6 +1932,8 @@ export type MessageCreateManyReplyToInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1705,6 +1948,8 @@ export type MessageCreateManyOriginalMessageInput = {
   fileUrl?: string | null
   isEdited?: boolean
   isShared?: boolean
+  botId?: number | null
+  pollId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1715,6 +1960,7 @@ export type MessageUpdateWithoutReplyToInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutMessagesNestedInput
@@ -1723,6 +1969,7 @@ export type MessageUpdateWithoutReplyToInput = {
   originalMessage?: Prisma.MessageUpdateOneWithoutSharedMessagesNestedInput
   sharedMessages?: Prisma.MessageUpdateManyWithoutOriginalMessageNestedInput
   pinnedIn?: Prisma.ChatUpdateOneWithoutPinnedMessageNestedInput
+  bot?: Prisma.BotUpdateOneWithoutMessagesNestedInput
   readBy?: Prisma.MessageReadUpdateManyWithoutMessageNestedInput
   Reaction?: Prisma.ReactionUpdateManyWithoutMessageNestedInput
 }
@@ -1737,6 +1984,8 @@ export type MessageUncheckedUpdateWithoutReplyToInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToNestedInput
@@ -1756,6 +2005,8 @@ export type MessageUncheckedUpdateManyWithoutReplyToInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1766,6 +2017,7 @@ export type MessageUpdateWithoutOriginalMessageInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutMessagesNestedInput
@@ -1774,6 +2026,7 @@ export type MessageUpdateWithoutOriginalMessageInput = {
   replies?: Prisma.MessageUpdateManyWithoutReplyToNestedInput
   sharedMessages?: Prisma.MessageUpdateManyWithoutOriginalMessageNestedInput
   pinnedIn?: Prisma.ChatUpdateOneWithoutPinnedMessageNestedInput
+  bot?: Prisma.BotUpdateOneWithoutMessagesNestedInput
   readBy?: Prisma.MessageReadUpdateManyWithoutMessageNestedInput
   Reaction?: Prisma.ReactionUpdateManyWithoutMessageNestedInput
 }
@@ -1788,6 +2041,8 @@ export type MessageUncheckedUpdateWithoutOriginalMessageInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToNestedInput
@@ -1807,6 +2062,81 @@ export type MessageUncheckedUpdateManyWithoutOriginalMessageInput = {
   fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  botId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type MessageCreateManyBotInput = {
+  id?: number
+  content: string
+  userId: number
+  chatId: number
+  messageId?: number | null
+  originalMessageId?: number | null
+  imageUrl?: string | null
+  fileUrl?: string | null
+  isEdited?: boolean
+  isShared?: boolean
+  pollId?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type MessageUpdateWithoutBotInput = {
+  content?: Prisma.StringFieldUpdateOperationsInput | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutMessagesNestedInput
+  chat?: Prisma.ChatUpdateOneRequiredWithoutMessagesNestedInput
+  replyTo?: Prisma.MessageUpdateOneWithoutRepliesNestedInput
+  replies?: Prisma.MessageUpdateManyWithoutReplyToNestedInput
+  originalMessage?: Prisma.MessageUpdateOneWithoutSharedMessagesNestedInput
+  sharedMessages?: Prisma.MessageUpdateManyWithoutOriginalMessageNestedInput
+  pinnedIn?: Prisma.ChatUpdateOneWithoutPinnedMessageNestedInput
+  readBy?: Prisma.MessageReadUpdateManyWithoutMessageNestedInput
+  Reaction?: Prisma.ReactionUpdateManyWithoutMessageNestedInput
+}
+
+export type MessageUncheckedUpdateWithoutBotInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  content?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.IntFieldUpdateOperationsInput | number
+  chatId?: Prisma.IntFieldUpdateOperationsInput | number
+  messageId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  originalMessageId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToNestedInput
+  sharedMessages?: Prisma.MessageUncheckedUpdateManyWithoutOriginalMessageNestedInput
+  pinnedIn?: Prisma.ChatUncheckedUpdateOneWithoutPinnedMessageNestedInput
+  readBy?: Prisma.MessageReadUncheckedUpdateManyWithoutMessageNestedInput
+  Reaction?: Prisma.ReactionUncheckedUpdateManyWithoutMessageNestedInput
+}
+
+export type MessageUncheckedUpdateManyWithoutBotInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  content?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.IntFieldUpdateOperationsInput | number
+  chatId?: Prisma.IntFieldUpdateOperationsInput | number
+  messageId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  originalMessageId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isEdited?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isShared?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  pollId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1880,6 +2210,8 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   fileUrl?: boolean
   isEdited?: boolean
   isShared?: boolean
+  botId?: boolean
+  pollId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1889,6 +2221,7 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   originalMessage?: boolean | Prisma.Message$originalMessageArgs<ExtArgs>
   sharedMessages?: boolean | Prisma.Message$sharedMessagesArgs<ExtArgs>
   pinnedIn?: boolean | Prisma.Message$pinnedInArgs<ExtArgs>
+  bot?: boolean | Prisma.Message$botArgs<ExtArgs>
   readBy?: boolean | Prisma.Message$readByArgs<ExtArgs>
   Reaction?: boolean | Prisma.Message$ReactionArgs<ExtArgs>
   _count?: boolean | Prisma.MessageCountOutputTypeDefaultArgs<ExtArgs>
@@ -1905,12 +2238,15 @@ export type MessageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   fileUrl?: boolean
   isEdited?: boolean
   isShared?: boolean
+  botId?: boolean
+  pollId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   chat?: boolean | Prisma.ChatDefaultArgs<ExtArgs>
   replyTo?: boolean | Prisma.Message$replyToArgs<ExtArgs>
   originalMessage?: boolean | Prisma.Message$originalMessageArgs<ExtArgs>
+  bot?: boolean | Prisma.Message$botArgs<ExtArgs>
 }, ExtArgs["result"]["message"]>
 
 export type MessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1924,12 +2260,15 @@ export type MessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   fileUrl?: boolean
   isEdited?: boolean
   isShared?: boolean
+  botId?: boolean
+  pollId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   chat?: boolean | Prisma.ChatDefaultArgs<ExtArgs>
   replyTo?: boolean | Prisma.Message$replyToArgs<ExtArgs>
   originalMessage?: boolean | Prisma.Message$originalMessageArgs<ExtArgs>
+  bot?: boolean | Prisma.Message$botArgs<ExtArgs>
 }, ExtArgs["result"]["message"]>
 
 export type MessageSelectScalar = {
@@ -1943,11 +2282,13 @@ export type MessageSelectScalar = {
   fileUrl?: boolean
   isEdited?: boolean
   isShared?: boolean
+  botId?: boolean
+  pollId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "content" | "userId" | "chatId" | "messageId" | "originalMessageId" | "imageUrl" | "fileUrl" | "isEdited" | "isShared" | "createdAt" | "updatedAt", ExtArgs["result"]["message"]>
+export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "content" | "userId" | "chatId" | "messageId" | "originalMessageId" | "imageUrl" | "fileUrl" | "isEdited" | "isShared" | "botId" | "pollId" | "createdAt" | "updatedAt", ExtArgs["result"]["message"]>
 export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   chat?: boolean | Prisma.ChatDefaultArgs<ExtArgs>
@@ -1956,6 +2297,7 @@ export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   originalMessage?: boolean | Prisma.Message$originalMessageArgs<ExtArgs>
   sharedMessages?: boolean | Prisma.Message$sharedMessagesArgs<ExtArgs>
   pinnedIn?: boolean | Prisma.Message$pinnedInArgs<ExtArgs>
+  bot?: boolean | Prisma.Message$botArgs<ExtArgs>
   readBy?: boolean | Prisma.Message$readByArgs<ExtArgs>
   Reaction?: boolean | Prisma.Message$ReactionArgs<ExtArgs>
   _count?: boolean | Prisma.MessageCountOutputTypeDefaultArgs<ExtArgs>
@@ -1965,12 +2307,14 @@ export type MessageIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   chat?: boolean | Prisma.ChatDefaultArgs<ExtArgs>
   replyTo?: boolean | Prisma.Message$replyToArgs<ExtArgs>
   originalMessage?: boolean | Prisma.Message$originalMessageArgs<ExtArgs>
+  bot?: boolean | Prisma.Message$botArgs<ExtArgs>
 }
 export type MessageIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   chat?: boolean | Prisma.ChatDefaultArgs<ExtArgs>
   replyTo?: boolean | Prisma.Message$replyToArgs<ExtArgs>
   originalMessage?: boolean | Prisma.Message$originalMessageArgs<ExtArgs>
+  bot?: boolean | Prisma.Message$botArgs<ExtArgs>
 }
 
 export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1983,6 +2327,7 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     originalMessage: Prisma.$MessagePayload<ExtArgs> | null
     sharedMessages: Prisma.$MessagePayload<ExtArgs>[]
     pinnedIn: Prisma.$ChatPayload<ExtArgs> | null
+    bot: Prisma.$BotPayload<ExtArgs> | null
     readBy: Prisma.$MessageReadPayload<ExtArgs>[]
     Reaction: Prisma.$ReactionPayload<ExtArgs>[]
   }
@@ -1997,6 +2342,8 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     fileUrl: string | null
     isEdited: boolean
     isShared: boolean
+    botId: number | null
+    pollId: number | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["message"]>
@@ -2400,6 +2747,7 @@ export interface Prisma__MessageClient<T, Null = never, ExtArgs extends runtime.
   originalMessage<T extends Prisma.Message$originalMessageArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$originalMessageArgs<ExtArgs>>): Prisma.Prisma__MessageClient<runtime.Types.Result.GetResult<Prisma.$MessagePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   sharedMessages<T extends Prisma.Message$sharedMessagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$sharedMessagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   pinnedIn<T extends Prisma.Message$pinnedInArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$pinnedInArgs<ExtArgs>>): Prisma.Prisma__ChatClient<runtime.Types.Result.GetResult<Prisma.$ChatPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  bot<T extends Prisma.Message$botArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$botArgs<ExtArgs>>): Prisma.Prisma__BotClient<runtime.Types.Result.GetResult<Prisma.$BotPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   readBy<T extends Prisma.Message$readByArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$readByArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessageReadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   Reaction<T extends Prisma.Message$ReactionArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$ReactionArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReactionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
@@ -2441,6 +2789,8 @@ export interface MessageFieldRefs {
   readonly fileUrl: Prisma.FieldRef<"Message", 'String'>
   readonly isEdited: Prisma.FieldRef<"Message", 'Boolean'>
   readonly isShared: Prisma.FieldRef<"Message", 'Boolean'>
+  readonly botId: Prisma.FieldRef<"Message", 'Int'>
+  readonly pollId: Prisma.FieldRef<"Message", 'Int'>
   readonly createdAt: Prisma.FieldRef<"Message", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Message", 'DateTime'>
 }
@@ -2941,6 +3291,25 @@ export type Message$pinnedInArgs<ExtArgs extends runtime.Types.Extensions.Intern
    */
   include?: Prisma.ChatInclude<ExtArgs> | null
   where?: Prisma.ChatWhereInput
+}
+
+/**
+ * Message.bot
+ */
+export type Message$botArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Bot
+   */
+  select?: Prisma.BotSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Bot
+   */
+  omit?: Prisma.BotOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BotInclude<ExtArgs> | null
+  where?: Prisma.BotWhereInput
 }
 
 /**

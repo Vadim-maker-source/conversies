@@ -33,3 +33,12 @@ export const GiftStatus = {
 } as const
 
 export type GiftStatus = (typeof GiftStatus)[keyof typeof GiftStatus]
+
+
+export const GameType = {
+  QUESTION: 'QUESTION',
+  POLL: 'POLL',
+  QUIZ: 'QUIZ'
+} as const
+
+export type GameType = (typeof GameType)[keyof typeof GameType]

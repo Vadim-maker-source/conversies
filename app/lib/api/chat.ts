@@ -420,6 +420,7 @@ export async function sendMessage(
 }
 
 // Получение сообщений чата
+// Получение сообщений чата
 export async function getChatMessages(chatId: number, page: number = 1, limit: number = 50) {
   const currentUser = await getCurrentUser()
   if (!currentUser) return []
@@ -442,9 +443,11 @@ export async function getChatMessages(chatId: number, page: number = 1, limit: n
       },
       include: {
         user: true,
+        bot: true, // Добавляем включение данных о боте
         replyTo: {
           include: {
-            user: true
+            user: true,
+            bot: true // Добавляем для ответов
           }
         },
         Reaction: {

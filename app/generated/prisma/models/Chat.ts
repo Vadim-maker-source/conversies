@@ -255,6 +255,7 @@ export type ChatWhereInput = {
   members?: Prisma.ChatMemberListRelationFilter
   messages?: Prisma.MessageListRelationFilter
   pinnedMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
+  botGames?: Prisma.BotGameListRelationFilter
 }
 
 export type ChatOrderByWithRelationInput = {
@@ -270,6 +271,7 @@ export type ChatOrderByWithRelationInput = {
   members?: Prisma.ChatMemberOrderByRelationAggregateInput
   messages?: Prisma.MessageOrderByRelationAggregateInput
   pinnedMessage?: Prisma.MessageOrderByWithRelationInput
+  botGames?: Prisma.BotGameOrderByRelationAggregateInput
 }
 
 export type ChatWhereUniqueInput = Prisma.AtLeast<{
@@ -288,6 +290,7 @@ export type ChatWhereUniqueInput = Prisma.AtLeast<{
   members?: Prisma.ChatMemberListRelationFilter
   messages?: Prisma.MessageListRelationFilter
   pinnedMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
+  botGames?: Prisma.BotGameListRelationFilter
 }, "id" | "pinnedMessageId">
 
 export type ChatOrderByWithAggregationInput = {
@@ -333,6 +336,7 @@ export type ChatCreateInput = {
   members?: Prisma.ChatMemberCreateNestedManyWithoutChatInput
   messages?: Prisma.MessageCreateNestedManyWithoutChatInput
   pinnedMessage?: Prisma.MessageCreateNestedOneWithoutPinnedInInput
+  botGames?: Prisma.BotGameCreateNestedManyWithoutChatInput
 }
 
 export type ChatUncheckedCreateInput = {
@@ -347,6 +351,7 @@ export type ChatUncheckedCreateInput = {
   updatedAt?: Date | string
   members?: Prisma.ChatMemberUncheckedCreateNestedManyWithoutChatInput
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutChatInput
+  botGames?: Prisma.BotGameUncheckedCreateNestedManyWithoutChatInput
 }
 
 export type ChatUpdateInput = {
@@ -360,6 +365,7 @@ export type ChatUpdateInput = {
   members?: Prisma.ChatMemberUpdateManyWithoutChatNestedInput
   messages?: Prisma.MessageUpdateManyWithoutChatNestedInput
   pinnedMessage?: Prisma.MessageUpdateOneWithoutPinnedInNestedInput
+  botGames?: Prisma.BotGameUpdateManyWithoutChatNestedInput
 }
 
 export type ChatUncheckedUpdateInput = {
@@ -374,6 +380,7 @@ export type ChatUncheckedUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   members?: Prisma.ChatMemberUncheckedUpdateManyWithoutChatNestedInput
   messages?: Prisma.MessageUncheckedUpdateManyWithoutChatNestedInput
+  botGames?: Prisma.BotGameUncheckedUpdateManyWithoutChatNestedInput
 }
 
 export type ChatCreateManyInput = {
@@ -534,6 +541,20 @@ export type ChatUncheckedUpdateOneWithoutPinnedMessageNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ChatUpdateToOneWithWhereWithoutPinnedMessageInput, Prisma.ChatUpdateWithoutPinnedMessageInput>, Prisma.ChatUncheckedUpdateWithoutPinnedMessageInput>
 }
 
+export type ChatCreateNestedOneWithoutBotGamesInput = {
+  create?: Prisma.XOR<Prisma.ChatCreateWithoutBotGamesInput, Prisma.ChatUncheckedCreateWithoutBotGamesInput>
+  connectOrCreate?: Prisma.ChatCreateOrConnectWithoutBotGamesInput
+  connect?: Prisma.ChatWhereUniqueInput
+}
+
+export type ChatUpdateOneRequiredWithoutBotGamesNestedInput = {
+  create?: Prisma.XOR<Prisma.ChatCreateWithoutBotGamesInput, Prisma.ChatUncheckedCreateWithoutBotGamesInput>
+  connectOrCreate?: Prisma.ChatCreateOrConnectWithoutBotGamesInput
+  upsert?: Prisma.ChatUpsertWithoutBotGamesInput
+  connect?: Prisma.ChatWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ChatUpdateToOneWithWhereWithoutBotGamesInput, Prisma.ChatUpdateWithoutBotGamesInput>, Prisma.ChatUncheckedUpdateWithoutBotGamesInput>
+}
+
 export type ChatCreateWithoutMembersInput = {
   name?: string | null
   type?: $Enums.ChatType
@@ -544,6 +565,7 @@ export type ChatCreateWithoutMembersInput = {
   updatedAt?: Date | string
   messages?: Prisma.MessageCreateNestedManyWithoutChatInput
   pinnedMessage?: Prisma.MessageCreateNestedOneWithoutPinnedInInput
+  botGames?: Prisma.BotGameCreateNestedManyWithoutChatInput
 }
 
 export type ChatUncheckedCreateWithoutMembersInput = {
@@ -557,6 +579,7 @@ export type ChatUncheckedCreateWithoutMembersInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutChatInput
+  botGames?: Prisma.BotGameUncheckedCreateNestedManyWithoutChatInput
 }
 
 export type ChatCreateOrConnectWithoutMembersInput = {
@@ -585,6 +608,7 @@ export type ChatUpdateWithoutMembersInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.MessageUpdateManyWithoutChatNestedInput
   pinnedMessage?: Prisma.MessageUpdateOneWithoutPinnedInNestedInput
+  botGames?: Prisma.BotGameUpdateManyWithoutChatNestedInput
 }
 
 export type ChatUncheckedUpdateWithoutMembersInput = {
@@ -598,6 +622,7 @@ export type ChatUncheckedUpdateWithoutMembersInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.MessageUncheckedUpdateManyWithoutChatNestedInput
+  botGames?: Prisma.BotGameUncheckedUpdateManyWithoutChatNestedInput
 }
 
 export type ChatCreateWithoutMessagesInput = {
@@ -610,6 +635,7 @@ export type ChatCreateWithoutMessagesInput = {
   updatedAt?: Date | string
   members?: Prisma.ChatMemberCreateNestedManyWithoutChatInput
   pinnedMessage?: Prisma.MessageCreateNestedOneWithoutPinnedInInput
+  botGames?: Prisma.BotGameCreateNestedManyWithoutChatInput
 }
 
 export type ChatUncheckedCreateWithoutMessagesInput = {
@@ -623,6 +649,7 @@ export type ChatUncheckedCreateWithoutMessagesInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   members?: Prisma.ChatMemberUncheckedCreateNestedManyWithoutChatInput
+  botGames?: Prisma.BotGameUncheckedCreateNestedManyWithoutChatInput
 }
 
 export type ChatCreateOrConnectWithoutMessagesInput = {
@@ -640,6 +667,7 @@ export type ChatCreateWithoutPinnedMessageInput = {
   updatedAt?: Date | string
   members?: Prisma.ChatMemberCreateNestedManyWithoutChatInput
   messages?: Prisma.MessageCreateNestedManyWithoutChatInput
+  botGames?: Prisma.BotGameCreateNestedManyWithoutChatInput
 }
 
 export type ChatUncheckedCreateWithoutPinnedMessageInput = {
@@ -653,6 +681,7 @@ export type ChatUncheckedCreateWithoutPinnedMessageInput = {
   updatedAt?: Date | string
   members?: Prisma.ChatMemberUncheckedCreateNestedManyWithoutChatInput
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutChatInput
+  botGames?: Prisma.BotGameUncheckedCreateNestedManyWithoutChatInput
 }
 
 export type ChatCreateOrConnectWithoutPinnedMessageInput = {
@@ -681,6 +710,7 @@ export type ChatUpdateWithoutMessagesInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   members?: Prisma.ChatMemberUpdateManyWithoutChatNestedInput
   pinnedMessage?: Prisma.MessageUpdateOneWithoutPinnedInNestedInput
+  botGames?: Prisma.BotGameUpdateManyWithoutChatNestedInput
 }
 
 export type ChatUncheckedUpdateWithoutMessagesInput = {
@@ -694,6 +724,7 @@ export type ChatUncheckedUpdateWithoutMessagesInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   members?: Prisma.ChatMemberUncheckedUpdateManyWithoutChatNestedInput
+  botGames?: Prisma.BotGameUncheckedUpdateManyWithoutChatNestedInput
 }
 
 export type ChatUpsertWithoutPinnedMessageInput = {
@@ -717,6 +748,7 @@ export type ChatUpdateWithoutPinnedMessageInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   members?: Prisma.ChatMemberUpdateManyWithoutChatNestedInput
   messages?: Prisma.MessageUpdateManyWithoutChatNestedInput
+  botGames?: Prisma.BotGameUpdateManyWithoutChatNestedInput
 }
 
 export type ChatUncheckedUpdateWithoutPinnedMessageInput = {
@@ -726,6 +758,77 @@ export type ChatUncheckedUpdateWithoutPinnedMessageInput = {
   isChannel?: Prisma.BoolFieldUpdateOperationsInput | boolean
   avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPrivate?: Prisma.NullableBoolFieldUpdateOperationsInput | boolean | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  members?: Prisma.ChatMemberUncheckedUpdateManyWithoutChatNestedInput
+  messages?: Prisma.MessageUncheckedUpdateManyWithoutChatNestedInput
+  botGames?: Prisma.BotGameUncheckedUpdateManyWithoutChatNestedInput
+}
+
+export type ChatCreateWithoutBotGamesInput = {
+  name?: string | null
+  type?: $Enums.ChatType
+  isChannel?: boolean
+  avatar?: string | null
+  isPrivate?: boolean | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  members?: Prisma.ChatMemberCreateNestedManyWithoutChatInput
+  messages?: Prisma.MessageCreateNestedManyWithoutChatInput
+  pinnedMessage?: Prisma.MessageCreateNestedOneWithoutPinnedInInput
+}
+
+export type ChatUncheckedCreateWithoutBotGamesInput = {
+  id?: number
+  name?: string | null
+  type?: $Enums.ChatType
+  isChannel?: boolean
+  avatar?: string | null
+  isPrivate?: boolean | null
+  pinnedMessageId?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  members?: Prisma.ChatMemberUncheckedCreateNestedManyWithoutChatInput
+  messages?: Prisma.MessageUncheckedCreateNestedManyWithoutChatInput
+}
+
+export type ChatCreateOrConnectWithoutBotGamesInput = {
+  where: Prisma.ChatWhereUniqueInput
+  create: Prisma.XOR<Prisma.ChatCreateWithoutBotGamesInput, Prisma.ChatUncheckedCreateWithoutBotGamesInput>
+}
+
+export type ChatUpsertWithoutBotGamesInput = {
+  update: Prisma.XOR<Prisma.ChatUpdateWithoutBotGamesInput, Prisma.ChatUncheckedUpdateWithoutBotGamesInput>
+  create: Prisma.XOR<Prisma.ChatCreateWithoutBotGamesInput, Prisma.ChatUncheckedCreateWithoutBotGamesInput>
+  where?: Prisma.ChatWhereInput
+}
+
+export type ChatUpdateToOneWithWhereWithoutBotGamesInput = {
+  where?: Prisma.ChatWhereInput
+  data: Prisma.XOR<Prisma.ChatUpdateWithoutBotGamesInput, Prisma.ChatUncheckedUpdateWithoutBotGamesInput>
+}
+
+export type ChatUpdateWithoutBotGamesInput = {
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  type?: Prisma.EnumChatTypeFieldUpdateOperationsInput | $Enums.ChatType
+  isChannel?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPrivate?: Prisma.NullableBoolFieldUpdateOperationsInput | boolean | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  members?: Prisma.ChatMemberUpdateManyWithoutChatNestedInput
+  messages?: Prisma.MessageUpdateManyWithoutChatNestedInput
+  pinnedMessage?: Prisma.MessageUpdateOneWithoutPinnedInNestedInput
+}
+
+export type ChatUncheckedUpdateWithoutBotGamesInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  type?: Prisma.EnumChatTypeFieldUpdateOperationsInput | $Enums.ChatType
+  isChannel?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPrivate?: Prisma.NullableBoolFieldUpdateOperationsInput | boolean | null
+  pinnedMessageId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   members?: Prisma.ChatMemberUncheckedUpdateManyWithoutChatNestedInput
@@ -740,11 +843,13 @@ export type ChatUncheckedUpdateWithoutPinnedMessageInput = {
 export type ChatCountOutputType = {
   members: number
   messages: number
+  botGames: number
 }
 
 export type ChatCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   members?: boolean | ChatCountOutputTypeCountMembersArgs
   messages?: boolean | ChatCountOutputTypeCountMessagesArgs
+  botGames?: boolean | ChatCountOutputTypeCountBotGamesArgs
 }
 
 /**
@@ -771,6 +876,13 @@ export type ChatCountOutputTypeCountMessagesArgs<ExtArgs extends runtime.Types.E
   where?: Prisma.MessageWhereInput
 }
 
+/**
+ * ChatCountOutputType without action
+ */
+export type ChatCountOutputTypeCountBotGamesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.BotGameWhereInput
+}
+
 
 export type ChatSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -785,6 +897,7 @@ export type ChatSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   members?: boolean | Prisma.Chat$membersArgs<ExtArgs>
   messages?: boolean | Prisma.Chat$messagesArgs<ExtArgs>
   pinnedMessage?: boolean | Prisma.Chat$pinnedMessageArgs<ExtArgs>
+  botGames?: boolean | Prisma.Chat$botGamesArgs<ExtArgs>
   _count?: boolean | Prisma.ChatCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["chat"]>
 
@@ -831,6 +944,7 @@ export type ChatInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   members?: boolean | Prisma.Chat$membersArgs<ExtArgs>
   messages?: boolean | Prisma.Chat$messagesArgs<ExtArgs>
   pinnedMessage?: boolean | Prisma.Chat$pinnedMessageArgs<ExtArgs>
+  botGames?: boolean | Prisma.Chat$botGamesArgs<ExtArgs>
   _count?: boolean | Prisma.ChatCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ChatIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -846,6 +960,7 @@ export type $ChatPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     members: Prisma.$ChatMemberPayload<ExtArgs>[]
     messages: Prisma.$MessagePayload<ExtArgs>[]
     pinnedMessage: Prisma.$MessagePayload<ExtArgs> | null
+    botGames: Prisma.$BotGamePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -1254,6 +1369,7 @@ export interface Prisma__ChatClient<T, Null = never, ExtArgs extends runtime.Typ
   members<T extends Prisma.Chat$membersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Chat$membersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ChatMemberPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   messages<T extends Prisma.Chat$messagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Chat$messagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   pinnedMessage<T extends Prisma.Chat$pinnedMessageArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Chat$pinnedMessageArgs<ExtArgs>>): Prisma.Prisma__MessageClient<runtime.Types.Result.GetResult<Prisma.$MessagePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  botGames<T extends Prisma.Chat$botGamesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Chat$botGamesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BotGamePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1752,6 +1868,30 @@ export type Chat$pinnedMessageArgs<ExtArgs extends runtime.Types.Extensions.Inte
    */
   include?: Prisma.MessageInclude<ExtArgs> | null
   where?: Prisma.MessageWhereInput
+}
+
+/**
+ * Chat.botGames
+ */
+export type Chat$botGamesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the BotGame
+   */
+  select?: Prisma.BotGameSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the BotGame
+   */
+  omit?: Prisma.BotGameOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BotGameInclude<ExtArgs> | null
+  where?: Prisma.BotGameWhereInput
+  orderBy?: Prisma.BotGameOrderByWithRelationInput | Prisma.BotGameOrderByWithRelationInput[]
+  cursor?: Prisma.BotGameWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.BotGameScalarFieldEnum | Prisma.BotGameScalarFieldEnum[]
 }
 
 /**
