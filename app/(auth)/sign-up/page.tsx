@@ -15,7 +15,7 @@ type FormData = {
   confirmPassword: string
 }
 
-export default function SignUpPage() {
+function SignUpPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -167,18 +167,7 @@ export default function SignUpPage() {
   }
 
   return (
-    <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
-            <div className="w-full max-w-md">
-              <div className="w-full p-6 bg-black/40 backdrop-blur-sm rounded-xl border border-gray-700 shadow-2xl">
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
-                  <span className="text-white">Загрузка...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        }>
+    
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-[340px] md:w-sm space-y-8 bg-black/40 py-6 px-14 rounded-2xl">
         <div>
@@ -374,6 +363,24 @@ export default function SignUpPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function SignUp(){
+  return(
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
+        <div className="w-full max-w-md">
+          <div className="w-full p-6 bg-black/40 backdrop-blur-sm rounded-xl border border-gray-700 shadow-2xl">
+            <div className="flex items-center justify-center space-x-2">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+              <span className="text-white">Загрузка...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <SignUpPage />
     </Suspense>
   )
 }
