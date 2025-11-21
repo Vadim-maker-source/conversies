@@ -2,7 +2,7 @@ export type User = {
     id: number
     name: string | null
     surname: string | null
-    bio: string | null
+    bio?: string | null
     email: string
     phone: string | null
     avatar?: string | null

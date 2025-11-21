@@ -569,6 +569,7 @@ export async function getChatInfo(chatId: number) {
                 id: true,
                 name: true,
                 surname: true,
+                bio: true,
                 email: true,
                 phone: true,
                 isPremium: true,
