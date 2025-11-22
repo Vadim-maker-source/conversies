@@ -173,6 +173,7 @@ function VoiceMessage({
 }
 
 // Компонент для записи голосового сообщения
+// Компонент для записи голосового сообщения (компактная версия)
 function VoiceRecorder({ 
   onRecordingComplete,
   onCancel
@@ -281,91 +282,92 @@ function VoiceRecorder({
   }
 
   return (
-    <div className="bg-black/60 rounded-xl p-4 space-y-4">
+    <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-3 mb-3">
       {!recording.audioUrl ? (
-        <>
-          <div className="flex items-center justify-between">
-            <span className="text-white font-medium">
-              {recording.isRecording ? 'Запись...' : 'Голосовое сообщение'}
-            </span>
-            <span className="text-red-500 text-lg font-mono">
-              {formatTime(recording.timer)}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-center space-x-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
             {!recording.isRecording ? (
-              <>
-                <button
-                  onClick={startRecording}
-                  className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                >
-                  <FontAwesomeIcon icon={faMicrophone} className="w-4 h-4" />
-                  <span>Начать запись</span>
-                </button>
-                <button
-                  onClick={onCancel}
-                  className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
-                >
-                  Отмена
-                </button>
-              </>
+              <button
+                onClick={startRecording}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+              >
+                <FontAwesomeIcon icon={faMicrophone} className="w-4 h-4" />
+                <span className="font-medium">Начать запись</span>
+              </button>
             ) : (
               <button
                 onClick={stopRecording}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
               >
                 <FontAwesomeIcon icon={faStop} className="w-4 h-4" />
-                <span>Завершить запись</span>
+                <span className="font-medium">Остановить</span>
               </button>
+            )}
+            
+            {recording.isRecording && (
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-red-400 font-mono text-lg font-bold">
+                  {formatTime(recording.timer)}
+                </span>
+              </div>
             )}
           </div>
 
-          {recording.isRecording && (
-            <div className="flex justify-center">
-              <div className="w-8 h-8 bg-red-500 rounded-full animate-pulse" />
-            </div>
-          )}
-        </>
+          <div className="flex items-center space-x-2">
+            {recording.isRecording && (
+              <div className="text-sm text-red-300">
+                Запись...
+              </div>
+            )}
+            <button
+              onClick={onCancel}
+              className="px-3 py-1 text-gray-300 hover:text-white transition-colors text-sm"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
       ) : (
-        <>
-          <div className="text-white text-center">
-            <p>Запись завершена ({formatTime(recording.duration)})</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <audio 
+              controls 
+              src={recording.audioUrl}
+              className="w-32 h-8"
+            />
+            <span className="text-sm text-gray-300">
+              {formatTime(recording.duration)}
+            </span>
           </div>
           
-          <div className="flex items-center justify-center space-x-4">
+          <div className="flex items-center space-x-2">
             <button
               onClick={sendRecording}
-              className="px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+              className="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
             >
               Отправить
             </button>
             <button
               onClick={() => {
                 cleanup()
-                onCancel()
+                startRecording()
               }}
-              className="px-4 py-2 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition-colors"
+              className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
             >
-              Отмена
+              Перезаписать
             </button>
             <button
               onClick={() => {
                 cleanup()
-                startRecording()
+                onCancel()
               }}
-              className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
+              className="px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
             >
-              Перезаписать
+              Отмена
             </button>
           </div>
-
-          <audio 
-            controls 
-            src={recording.audioUrl}
-            className="w-full"
-          />
-        </>
+        </div>
       )}
     </div>
   )
