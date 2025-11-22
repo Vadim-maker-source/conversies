@@ -498,6 +498,12 @@ export async function getChatMessages(chatId: number, page: number = 1, limit: n
 
     const messagesWithReactions = messages.map(message => {
       const fileUrls = message.fileUrl ? [message.fileUrl] : []
+
+      const isVoiceMessage = Boolean(
+        !message.content && 
+        message.fileUrl && 
+        message.fileUrl.match(/\.(mp3|wav|ogg|webm)$/i)
+      )
       
       const reactions = message.Reaction.reduce((acc, reaction) => {
         if (!acc[reaction.emoji]) {
@@ -530,7 +536,8 @@ export async function getChatMessages(chatId: number, page: number = 1, limit: n
         readCount,
         totalMembers,
         readStatus,
-        isReadByCurrentUser
+        isReadByCurrentUser,
+        isVoiceMessage
       }
     })
 
@@ -611,12 +618,46 @@ export async function uploadFile(formData: FormData) {
     throw new Error('Файл не найден')
   }
 
+  // Проверяем тип файла
+  const allowedTypes = [
+    'image/', 'video/', 'audio/',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/zip',
+    'application/x-rar-compressed'
+  ]
+
+  const isValidType = allowedTypes.some(type => 
+    file.type.startsWith(type) || 
+    file.name.match(/\.(pdf|doc|docx|xls|xlsx|zip|rar|mp3|wav|ogg|webm)$/i)
+  )
+
+  if (!isValidType) {
+    throw new Error('Недопустимый тип файла')
+  }
+
+  // Проверяем размер файла
+  const maxSize = file.type.startsWith('audio/') ? 
+    10 * 1024 * 1024 : // 10MB для аудио
+    (file.type.startsWith('image/') || file.type.startsWith('video/') ? 
+      20 * 1024 * 1024 : // 20MB для изображений и видео
+      10 * 1024 * 1024) // 10MB для остальных файлов
+
+  if (file.size > maxSize) {
+    throw new Error(`Файл слишком большой. Максимальный размер: ${maxSize / 1024 / 1024}MB`)
+  }
+
   try {
-    // Сохраняем оригинальное имя файла без шифрования
-    const originalFileName = file.name
-    const blob = await put(`files/${originalFileName}`, file, {
+    // Создаем уникальное имя файла
+    const timestamp = Date.now()
+    const fileExtension = file.name.split('.').pop()
+    const fileName = `files/${timestamp}-${Math.random().toString(36).substr(2, 9)}.${fileExtension}`
+
+    const blob = await put(fileName, file, {
       access: 'public',
-      addRandomSuffix: true
     })
 
     return {
@@ -2216,5 +2257,102 @@ export async function getLinkPreview(url: string) {
       image: null,
       domain
     }
+  }
+}
+
+export async function sendVoiceMessage(chatId: number, voiceFileUrl: string) {
+  const currentUser = await getCurrentUser()
+  if (!currentUser) throw new Error('Не авторизован')
+
+  try {
+    const chatMember = await prisma.chatMember.findUnique({
+      where: {
+        userId_chatId: {
+          userId: currentUser.id,
+          chatId
+        }
+      }
+    })
+
+    if (!chatMember) throw new Error('Не участник чата')
+
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId }
+    })
+
+    if (chat?.isChannel && !['ADMIN', 'OWNER'].includes(chatMember.role)) {
+      throw new Error('В этом канале могут писать только администраторы')
+    }
+
+    // Создаем сообщение с голосовым файлом
+    const message = await prisma.message.create({
+      data: {
+        content: '', // Пустой контент для голосовых сообщений
+        userId: currentUser.id,
+        chatId,
+        fileUrl: voiceFileUrl
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            email: true
+          }
+        },
+        replyTo: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true
+              }
+            }
+          }
+        },
+        Reaction: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                avatar: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    // Обновляем время изменения чата
+    await prisma.chat.update({
+      where: { id: chatId },
+      data: { updatedAt: new Date() }
+    })
+
+    // Преобразуем реакции в нужный формат
+    const reactions = message.Reaction.reduce((acc, reaction) => {
+      if (!acc[reaction.emoji]) {
+        acc[reaction.emoji] = []
+      }
+      acc[reaction.emoji].push(reaction.user)
+      return acc
+    }, {} as Record<string, any[]>)
+
+    return {
+      ...message,
+      fileUrls: [voiceFileUrl],
+      reactions,
+      readCount: 0,
+      totalMembers: 0,
+      readStatus: 'sent' as const,
+      isReadByCurrentUser: false
+    }
+  } catch (error) {
+    console.error('Error sending voice message:', error)
+    throw error
   }
 }

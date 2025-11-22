@@ -1,11 +1,11 @@
 'use client'
 
-import { uploadFile, updateMessage, deleteMessage, forwardMessage, getUserChats, addReaction, removeReaction, pinMessage, unpinMessage, getPinnedMessage, markMessageAsRead, markAllMessagesAsRead, searchMessagesInChat, getLinkPreview } from '@/app/lib/api/chat'
+import { uploadFile, updateMessage, deleteMessage, forwardMessage, getUserChats, addReaction, removeReaction, pinMessage, unpinMessage, getPinnedMessage, markMessageAsRead, markAllMessagesAsRead, searchMessagesInChat, getLinkPreview, sendVoiceMessage } from '@/app/lib/api/chat'
 import { User, ChatWithDetails, Message } from '@/app/lib/types'
 import { useChatMessages } from '@/hooks/useChatMessages'
 import { useState, useRef, useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faFaceSmile, faPaperclip, faPaperPlane, faTrash, faDownload, faReply, faShare, faEdit, faThumbTack } from '@fortawesome/free-solid-svg-icons'
+import { faFaceSmile, faPaperclip, faPaperPlane, faTrash, faDownload, faReply, faShare, faEdit, faThumbTack, faMicrophone, faStop, faPause, faPlay } from '@fortawesome/free-solid-svg-icons'
 import Link from 'next/link'
 import {
   ContextMenu,
@@ -50,6 +50,325 @@ export type MessageWithFiles = Message & {
   isReadByCurrentUser?: boolean
   reactions?: Record<string, any[]> // Добавляем реакции
   imageUrl?: string | null // Добавляем imageUrl
+  isVoiceMessage?: boolean
+}
+
+interface VoiceRecording {
+  isRecording: boolean
+  audioBlob: Blob | null
+  audioUrl: string | null
+  duration: number
+  timer: number
+}
+
+// Компонент для отображения голосового сообщения
+function VoiceMessage({ 
+  message, 
+  isOwn 
+}: { 
+  message: MessageWithFiles; 
+  isOwn: boolean;
+}) {
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  const voiceUrl = message.fileUrl
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    const updateTime = () => setCurrentTime(audio.currentTime)
+    const updateDuration = () => setDuration(audio.duration)
+    const handleEnd = () => setIsPlaying(false)
+
+    audio.addEventListener('timeupdate', updateTime)
+    audio.addEventListener('loadedmetadata', updateDuration)
+    audio.addEventListener('ended', handleEnd)
+
+    return () => {
+      audio.removeEventListener('timeupdate', updateTime)
+      audio.removeEventListener('loadedmetadata', updateDuration)
+      audio.removeEventListener('ended', handleEnd)
+    }
+  }, [])
+
+  const togglePlayback = () => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    if (isPlaying) {
+      audio.pause()
+    } else {
+      audio.play()
+    }
+    setIsPlaying(!isPlaying)
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0
+
+  if (!voiceUrl) return null
+
+  return (
+    <div className={`flex items-center space-x-3 p-3 rounded-lg ${
+      isOwn ? 'bg-purple-500/20' : 'bg-gray-500/20'
+    }`}>
+      <audio
+        ref={audioRef}
+        src={voiceUrl}
+        preload="metadata"
+      />
+      
+      <button
+        onClick={togglePlayback}
+        className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+          isOwn 
+            ? 'bg-purple-500 text-white hover:bg-purple-600' 
+            : 'bg-blue-500 text-white hover:bg-blue-600'
+        }`}
+      >
+        <FontAwesomeIcon 
+          icon={isPlaying ? faPause : faPlay} 
+          className="w-4 h-4 ml-1" 
+        />
+      </button>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm font-medium text-white">
+            Голосовое сообщение
+          </span>
+          <span className="text-xs text-gray-300">
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </span>
+        </div>
+        
+        <div className="w-full bg-gray-600 rounded-full h-2">
+          <div 
+            className={`h-2 rounded-full transition-all duration-100 ${
+              isOwn ? 'bg-purple-400' : 'bg-blue-400'
+            }`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <button
+        onClick={() => voiceUrl && downloadFile(voiceUrl, 'voice-message.mp3')}
+        className="flex-shrink-0 text-gray-300 hover:text-white transition-colors"
+        title="Скачать голосовое сообщение"
+      >
+        <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
+      </button>
+    </div>
+  )
+}
+
+// Компонент для записи голосового сообщения
+function VoiceRecorder({ 
+  onRecordingComplete,
+  onCancel
+}: {
+  onRecordingComplete: (audioBlob: Blob) => void
+  onCancel: () => void
+}) {
+  const [recording, setRecording] = useState<VoiceRecording>({
+    isRecording: false,
+    audioBlob: null,
+    audioUrl: null,
+    duration: 0,
+    timer: 0
+  })
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      chunksRef.current = []
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data)
+        }
+      }
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        const audioUrl = URL.createObjectURL(audioBlob)
+        
+        setRecording(prev => ({
+          ...prev,
+          audioBlob,
+          audioUrl,
+          isRecording: false
+        }))
+
+        // Освобождаем поток
+        stream.getTracks().forEach(track => track.stop())
+      }
+
+      mediaRecorder.start()
+      setRecording(prev => ({
+        ...prev,
+        isRecording: true,
+        timer: 0,
+        duration: 0
+      }))
+
+      // Таймер
+      timerRef.current = setInterval(() => {
+        setRecording(prev => ({
+          ...prev,
+          timer: prev.timer + 1,
+          duration: prev.duration + 1
+        }))
+      }, 1000)
+
+    } catch (error) {
+      console.error('Error starting recording:', error)
+      alert('Не удалось получить доступ к микрофону')
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && recording.isRecording) {
+      mediaRecorderRef.current.stop()
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+    }
+  }
+
+  const sendRecording = () => {
+    if (recording.audioBlob) {
+      onRecordingComplete(recording.audioBlob)
+    }
+    cleanup()
+  }
+
+  const cleanup = () => {
+    if (recording.audioUrl) {
+      URL.revokeObjectURL(recording.audioUrl)
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
+    setRecording({
+      isRecording: false,
+      audioBlob: null,
+      audioUrl: null,
+      duration: 0,
+      timer: 0
+    })
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  return (
+    <div className="bg-black/60 rounded-xl p-4 space-y-4">
+      {!recording.audioUrl ? (
+        <>
+          <div className="flex items-center justify-between">
+            <span className="text-white font-medium">
+              {recording.isRecording ? 'Запись...' : 'Голосовое сообщение'}
+            </span>
+            <span className="text-red-500 text-lg font-mono">
+              {formatTime(recording.timer)}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-center space-x-4">
+            {!recording.isRecording ? (
+              <>
+                <button
+                  onClick={startRecording}
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                >
+                  <FontAwesomeIcon icon={faMicrophone} className="w-4 h-4" />
+                  <span>Начать запись</span>
+                </button>
+                <button
+                  onClick={onCancel}
+                  className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+                >
+                  Отмена
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={stopRecording}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+              >
+                <FontAwesomeIcon icon={faStop} className="w-4 h-4" />
+                <span>Завершить запись</span>
+              </button>
+            )}
+          </div>
+
+          {recording.isRecording && (
+            <div className="flex justify-center">
+              <div className="w-8 h-8 bg-red-500 rounded-full animate-pulse" />
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="text-white text-center">
+            <p>Запись завершена ({formatTime(recording.duration)})</p>
+          </div>
+          
+          <div className="flex items-center justify-center space-x-4">
+            <button
+              onClick={sendRecording}
+              className="px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+            >
+              Отправить
+            </button>
+            <button
+              onClick={() => {
+                cleanup()
+                onCancel()
+              }}
+              className="px-4 py-2 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition-colors"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={() => {
+                cleanup()
+                startRecording()
+              }}
+              className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
+            >
+              Перезаписать
+            </button>
+          </div>
+
+          <audio 
+            controls 
+            src={recording.audioUrl}
+            className="w-full"
+          />
+        </>
+      )}
+    </div>
+  )
 }
 
 // Функция для скачивания файла
@@ -969,6 +1288,8 @@ function MessageItem({
     message.content.startsWith('🎥')
   )
   const isSticker = message.imageUrl && message.imageUrl.includes('/stickers/')
+  const isVoiceMessage = message.fileUrl && message.fileUrl.match(/\.(mp3|wav|ogg|webm)$/i) && 
+                        !message.content && !message.imageUrl
 
   // Извлекаем ссылки из текста сообщения
   const { hasLinks, links, elements } = formatLinksInText(message.content || '')
@@ -1010,6 +1331,73 @@ function MessageItem({
     event.stopPropagation()
     const filename = getFileNameFromUrl(url)
     await downloadFile(url, filename)
+  }
+
+  if (isVoiceMessage) {
+    return (
+      <>
+        {showDate && <DateSeparator date={new Date(message.createdAt)} />}
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div id={`message-${message.id}`} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4`}>
+              <div
+                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
+                  isOwn
+                    ? 'bg-purple-700/10 text-white rounded-br-none border border-purple-400/20'
+                    : 'bg-black/40 text-white rounded-bl-none border border-purple-400/20'
+                }`}
+              >
+                {!isOwn && (
+                  <p className="text-xs font-medium text-gray-100 mb-2 wrap-break-word">
+                    {message.user.name} {message.user.surname}
+                  </p>
+                )}
+                <ForwardedMessageHeader message={message} />
+                <ReplyHeader message={message} onReplyClick={handleReplyClick} />
+                
+                <VoiceMessage message={message} isOwn={isOwn} />
+                
+                <MessageReactions 
+                  message={message}
+                  currentUser={currentUser}
+                  onAddReaction={onAddReaction}
+                  onRemoveReaction={onRemoveReaction}
+                />
+                
+                <div className="flex items-center justify-between mt-1 gap-4">
+                  <p className={`text-xs mt-1 ${
+                    isOwn ? 'text-blue-100' : 'text-gray-400'
+                  }`}>
+                    {new Date(message.createdAt).toLocaleTimeString('ru-RU', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                    {message.isEdited && ' (ред.)'}
+                  </p>
+                  
+                  <MessageReadStatus message={message} isOwn={isOwn} />
+                </div>
+              </div>
+            </div>
+          </ContextMenuTrigger>
+          <MessageContextMenu 
+            message={message}
+            isOwn={isOwn}
+            onReply={onReply}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onForward={onForward}
+            onPin={onPin}
+            onAddReaction={onAddReaction}
+            onRemoveReaction={onRemoveReaction}
+            currentUser={currentUser}
+            canPin={canPin}
+            chatInfo={chatInfo}
+            pinnedMessage={pinnedMessage}
+          />
+        </ContextMenu>
+      </>
+    )
   }
 
   if (isSticker) {
@@ -1503,6 +1891,35 @@ export default function ChatClient({ currentUser, chatInfo }: ChatClientProps) {
   const [isSearching, setIsSearching] = useState(false)
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1)
 
+  const [isRecording, setIsRecording] = useState(false)
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
+
+  const handleSendVoiceMessage = async (audioBlob: Blob) => {
+    setIsUploading(true)
+    try {
+      // Создаем FormData для загрузки аудио файла
+      const formData = new FormData()
+      const audioFile = new File([audioBlob], `voice-${Date.now()}.webm`, {
+        type: 'audio/webm'
+      })
+      formData.append('file', audioFile)
+  
+      // Загружаем файл
+      const uploadResult = await uploadFile(formData)
+      
+      // Отправляем голосовое сообщение используя оптимистичное обновление
+      await sendVoiceMessageOptimistic(uploadResult.url, replyingTo?.id)
+      
+      setShowVoiceRecorder(false)
+      setAutoScroll(true)
+    } catch (error) {
+      console.error('Error sending voice message:', error)
+      alert('Ошибка при отправке голосового сообщения')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   const [linkPreview, setLinkPreview] = useState<{
     url: string
     title: string
@@ -1516,6 +1933,7 @@ export default function ChatClient({ currentUser, chatInfo }: ChatClientProps) {
     messages, 
     isLoading, 
     sendMessageOptimistic,
+    sendVoiceMessageOptimistic,
     markAsRead
   } = useChatMessages({
     chatId: chatInfo.id,
@@ -2154,6 +2572,17 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
     )
   }
 
+  if (showVoiceRecorder) {
+    return (
+      <div className="bg-black/40 rounded-xl px-6 py-4 flex-shrink-0">
+        <VoiceRecorder
+          onRecordingComplete={handleSendVoiceMessage}
+          onCancel={() => setShowVoiceRecorder(false)}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 flex flex-col h-screen relative p-4">
       {/* Шапка чата */}
@@ -2403,6 +2832,18 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
             >
               <FontAwesomeIcon icon={faTrash} />
             </button>
+
+            {!newMessage.trim() && pendingFiles.length === 0 && !editingMessage && (
+            <button
+              type="button"
+              onClick={() => setShowVoiceRecorder(true)}
+              disabled={isUploading}
+              className="flex-shrink-0 h-10 w-10 text-white rounded-full hover:opacity-70 disabled:opacity-50 flex items-center justify-center transition-colors cursor-pointer"
+              title="Записать голосовое сообщение"
+            >
+              <FontAwesomeIcon icon={faMicrophone} className="text-xl" />
+            </button>
+          )}
             
             <button
               type="submit"

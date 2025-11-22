@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getChatMessages, sendMessage, markMessageAsRead } from '@/app/lib/api/chat'
-import { Message, User, ChatWithDetails } from '@/app/lib/types'
+import { getChatMessages, sendMessage, markMessageAsRead, sendVoiceMessage } from '@/app/lib/api/chat'
+import { Message, User, ChatWithDetails, MessageWithFiles, TemporaryMessage } from '@/app/lib/types'
 import { useEffect } from 'react'
 
 interface UseChatMessagesProps {
@@ -24,7 +24,7 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
     try {
       await markMessageAsRead(messageId)
       // Обновляем состояние сообщения
-      queryClient.setQueryData(['chat-messages', chatId], (old: any[] = []) => {
+      queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
         return old.map(msg => {
           if (msg.id === messageId && msg.userId !== currentUser.id) {
             return {
@@ -84,7 +84,7 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
   }
 
   const updateMessageReactions = (messageId: number, reactions: Record<string, User[]>) => {
-    queryClient.setQueryData(['chat-messages', chatId], (old: any[] = []) => {
+    queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
       return old.map(msg => 
         msg.id === messageId 
           ? { ...msg, reactions }
@@ -113,10 +113,13 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
       finalImageUrl = fileUrl
     }
 
+    // Определяем, является ли это голосовым сообщением
+    const isVoiceMessage = Boolean(!content && fileUrl && fileUrl.match(/\.(mp3|wav|ogg|webm)$/i))
+
     // Создаем временное сообщение
-    const tempMessage: any = {
+    const tempMessage: TemporaryMessage = {
       id: tempId,
-      content,
+      content: isVoiceMessage ? '' : content,
       userId: currentUser.id,
       chatId,
       messageId: replyToId || null,
@@ -128,23 +131,36 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
       user: currentUser,
       createdAt: new Date(),
       updatedAt: new Date(),
+      botId: null,
+      pollId: null,
       // Добавляем поля для прочтения
       readStatus: 'sent',
       readCount: 0,
       totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
-      isReadByCurrentUser: true
+      isReadByCurrentUser: true,
+      // Добавляем флаг голосового сообщения
+      isVoiceMessage,
+      reactions: {},
+      readBy: []
     }
 
     // Оптимистичное обновление
-    queryClient.setQueryData(['chat-messages', chatId], (old: any[] = []) => {
-      return [...old, tempMessage]
+    queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
+      return [...old, tempMessage as MessageWithFiles]
     })
 
     try {
-      const result = await sendMessage(chatId, content, fileUrl, imageUrl, fileUrls, replyToId)
+      let result
+      if (isVoiceMessage) {
+        // Отправляем голосовое сообщение
+        result = await sendVoiceMessage(chatId, fileUrl!)
+      } else {
+        // Отправляем обычное сообщение
+        result = await sendMessage(chatId, content, fileUrl, imageUrl, fileUrls, replyToId)
+      }
       
       // Сохраняем fileUrls и добавляем данные прочтения
-      queryClient.setQueryData(['chat-messages', chatId], (old: any[] = []) => {
+      queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
         return old.map(msg => {
           if (msg.id === tempId) {
             return { 
@@ -154,14 +170,78 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
               readStatus: 'sent',
               readCount: 0,
               totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
-              isReadByCurrentUser: true
-            }
+              isReadByCurrentUser: true,
+              isVoiceMessage: msg.isVoiceMessage || false
+            } as MessageWithFiles
           }
           return msg
         })
       })
     } catch (error) {
-      queryClient.setQueryData(['chat-messages', chatId], (old: any[] = []) => {
+      queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
+        return old.filter(msg => msg.id !== tempId)
+      })
+      throw error
+    }
+  }
+
+  // Новая функция для отправки голосового сообщения
+  const sendVoiceMessageOptimistic = async (voiceFileUrl: string, replyToId?: number) => {
+    const tempId = Date.now()
+    
+    // Создаем временное голосовое сообщение
+    const tempMessage: TemporaryMessage = {
+      id: tempId,
+      content: '', // Пустой контент для голосовых сообщений
+      userId: currentUser.id,
+      chatId,
+      messageId: replyToId || null,
+      imageUrl: null,
+      fileUrl: voiceFileUrl,
+      fileUrls: [voiceFileUrl],
+      isEdited: false,
+      isShared: false,
+      user: currentUser,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      botId: null,
+      pollId: null,
+      readStatus: 'sent',
+      readCount: 0,
+      totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
+      isReadByCurrentUser: true,
+      isVoiceMessage: true,
+      reactions: {},
+      readBy: []
+    }
+
+    // Оптимистичное обновление
+    queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
+      return [...old, tempMessage as MessageWithFiles]
+    })
+
+    try {
+      const result = await sendVoiceMessage(chatId, voiceFileUrl)
+      
+      // Обновляем сообщение с данными с сервера
+      queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
+        return old.map(msg => {
+          if (msg.id === tempId) {
+            return {
+              ...result,
+              fileUrls: msg.fileUrls || result.fileUrls || [],
+              readStatus: 'sent',
+              readCount: 0,
+              totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
+              isReadByCurrentUser: true,
+              isVoiceMessage: true
+            } as unknown as MessageWithFiles
+          }
+          return msg
+        })
+      })
+    } catch (error) {
+      queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
         return old.filter(msg => msg.id !== tempId)
       })
       throw error
@@ -174,6 +254,7 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
     error,
     addMessage,
     sendMessageOptimistic,
+    sendVoiceMessageOptimistic,
     markAsRead,
     updateMessageReactions
   }

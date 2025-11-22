@@ -44,22 +44,37 @@ const Page = () => {
       even: true
     },
     {
-      image: "/assets/images/security.png",
+      image: "/assets/images/security.PNG",
       title: "Полная безопасность",
       text: "Ваши данные под надежной защитой. Мы используем передовые технологии шифрования и соблюдаем строгие стандарты конфиденциальности. Ваши разговоры остаются только между вами.",
       even: false
     },
     {
-      image: "/assets/images/advantages.png",
+      image: "/assets/images/advantages.PNG",
       title: "Почему выбирают нас",
       text: "Сочетание современных технологий, человеческого подхода и постоянного развития. Мы не просто предоставляем сервис - мы создаем экосистему для эффективной коммуникации.",
       even: true
     },
     {
-      image: "/assets/images/innovations.png",
+      image: "/assets/images/innovations.PNG",
       title: "Инновации в каждом диалоге",
       text: "Автоматизация рутинных задач, умные подсказки и аналитика разговоров. Мы помогаем сделать ваше общение более продуктивным и результативным.",
       even: false
+    }
+  ]
+
+  const partneri = [
+    {
+      images: ["/assets/partneri/shadcn-logo.png"]
+    },
+    {
+      images: ["/assets/partneri/next-js.png", "/assets/partneri/nextjs-13.svg"]
+    },
+    {
+      images: ["/assets/partneri/Vercel_logo_2025.svg"]
+    },
+    {
+      images: ["/assets/partneri/prisma-2.svg"]
     }
   ]
 
@@ -141,6 +156,27 @@ const Page = () => {
               {user ? "Перейти к общению" : "Зарегистрироваться"}
             </button>
           </Link>
+        </div>
+      </div>
+
+      {/* Секция партнеров */}
+      <div className="w-full max-w-6xl mx-auto px-4 py-16">
+        <h2 className="text-3xl font-bold text-white text-center mb-12">
+          Наши партнеры
+        </h2>
+        <div className="flex flex-wrap justify-between items-center gap-8">
+          {partneri.map((partner, index) => (
+            <div key={index} className="flex items-center gap-4">
+              {partner.images.map((imageSrc, imgIndex) => (
+                <img 
+                  key={imgIndex}
+                  src={imageSrc} 
+                  alt={`Partner ${index + 1}`}
+                  className="h-8 object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
+                />
+              ))}
+            </div>
+          ))}
         </div>
       </div>
 
