@@ -73,6 +73,7 @@ interface VoiceRecording {
   stream: MediaStream | null
 }
 
+// Компонент для записи видеосообщений
 function VideoRecorder({ 
   onRecordingComplete,
   onCancel
@@ -88,29 +89,106 @@ function VideoRecorder({
     timer: 0,
     stream: null
   })
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([])
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0)
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  const startRecording = async () => {
+  // Получаем список доступных камер
+  const getCameras = async () => {
     try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const cameras = devices.filter(device => device.kind === 'videoinput')
+      setAvailableCameras(cameras)
+      return cameras
+    } catch (error) {
+      console.error('Error getting cameras:', error)
+      return []
+    }
+  }
+
+  // Переключение камеры
+  const switchCamera = async () => {
+    if (!recording.stream || availableCameras.length <= 1) return
+    
+    const nextCameraIndex = (currentCameraIndex + 1) % availableCameras.length
+    setCurrentCameraIndex(nextCameraIndex)
+    
+    // Останавливаем текущую запись если она идет
+    if (recording.isRecording) {
+      stopRecording()
+    }
+    
+    // Освобождаем текущий поток
+    recording.stream.getTracks().forEach(track => track.stop())
+    
+    // Запускаем запись с новой камеры
+    await startRecording(nextCameraIndex)
+  }
+
+  const startRecording = async (cameraIndex: number = 0) => {
+    try {
+      const cameras = await getCameras()
+      if (cameras.length === 0) {
+        throw new Error('Камеры не найдены')
+      }
+
+      const currentCamera = cameras[cameraIndex]
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
-          width: { ideal: 480 },
-          height: { ideal: 480 },
-          aspectRatio: 1 
+          deviceId: currentCamera.deviceId ? { exact: currentCamera.deviceId } : undefined,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
         }, 
-        audio: true 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        }
       })
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        // Ждем загрузки метаданных видео
+        await new Promise((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              videoRef.current?.play().then(resolve)
+            }
+          }
+        })
+      }
+
+      // Пробуем разные MIME types для совместимости
+      const mimeTypes = [
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm;codecs=h264,opus',
+        'video/webm',
+        'video/mp4'
+      ]
+
+      let supportedMimeType = ''
+      for (const mimeType of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+          supportedMimeType = mimeType
+          break
+        }
+      }
+
+      if (!supportedMimeType) {
+        console.warn('No supported MIME type found, using default')
       }
 
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9,opus'
+        mimeType: supportedMimeType
       })
+      
       mediaRecorderRef.current = mediaRecorder
       chunksRef.current = []
 
@@ -121,7 +199,8 @@ function VideoRecorder({
       }
 
       mediaRecorder.onstop = () => {
-        const videoBlob = new Blob(chunksRef.current, { type: 'video/webm' })
+        const mimeType = supportedMimeType || 'video/webm'
+        const videoBlob = new Blob(chunksRef.current, { type: mimeType })
         const videoUrl = URL.createObjectURL(videoBlob)
         
         setRecording(prev => ({
@@ -135,7 +214,7 @@ function VideoRecorder({
         stream.getTracks().forEach(track => track.stop())
       }
 
-      mediaRecorder.start()
+      mediaRecorder.start(1000) // Собираем данные каждую секунду
       setRecording(prev => ({
         ...prev,
         isRecording: true,
@@ -165,12 +244,12 @@ function VideoRecorder({
 
     } catch (error) {
       console.error('Error starting video recording:', error)
-      alert('Не удалось получить доступ к камере и микрофону')
+      alert('Не удалось получить доступ к камере и микрофону. Проверьте разрешения.')
     }
   }
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && recording.isRecording) {
+    if (mediaRecorderRef.current && recording.isRecording && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop()
       if (timerRef.current) {
         clearInterval(timerRef.current)
@@ -214,13 +293,21 @@ function VideoRecorder({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
+  // Воспроизведение записанного видео
+  const handleVideoPlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget
+    video.play().catch(error => {
+      console.error('Error playing video:', error)
+    })
+  }
+
   return (
     <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 rounded-xl p-4 mb-3">
       {!recording.videoUrl ? (
         <div className="space-y-4">
           {recording.isRecording ? (
             <div className="text-center">
-              <div className="relative w-48 h-48 mx-auto bg-black rounded-full overflow-hidden border-4 border-red-500">
+              <div className="relative w-80 h-80 mx-auto bg-black rounded-2xl overflow-hidden border-4 border-red-500 shadow-2xl">
                 <video
                   ref={videoRef}
                   autoPlay
@@ -228,58 +315,79 @@ function VideoRecorder({
                   playsInline
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute top-2 right-2 flex items-center space-x-1">
+                
+                {/* Индикатор записи и времени */}
+                <div className="absolute top-4 left-4 flex items-center space-x-2 bg-black/70 rounded-full px-3 py-1">
                   <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-                  <span className="text-red-400 text-xs font-bold">
+                  <span className="text-red-400 text-sm font-bold">
                     {formatTime(recording.timer)}
                   </span>
                 </div>
-                <div className="absolute bottom-2 left-0 right-0">
-                  <div className="w-full bg-gray-600 rounded-full h-1">
+                
+                {/* Прогресс бар */}
+                <div className="absolute bottom-4 left-4 right-4">
+                  <div className="w-full bg-gray-600 rounded-full h-2">
                     <div 
-                      className="bg-red-500 h-1 rounded-full transition-all duration-1000"
+                      className="bg-red-500 h-2 rounded-full transition-all duration-1000"
                       style={{ width: `${(recording.timer / 60) * 100}%` }}
                     />
                   </div>
                 </div>
+                
+                {/* Кнопка переключения камеры */}
+                {availableCameras.length > 1 && (
+                  <button
+                    onClick={switchCamera}
+                    className="absolute top-4 right-4 bg-black/70 text-white rounded-full p-2 hover:bg-black/90 transition-colors"
+                    title="Переключить камеру"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </button>
+                )}
               </div>
-              <p className="text-red-400 text-sm mt-2">
+              <p className="text-red-400 text-sm mt-3">
                 Запись... {60 - recording.timer}с осталось
               </p>
             </div>
           ) : (
             <div className="text-center">
-              <div className="w-32 h-32 mx-auto bg-purple-500/20 rounded-full flex items-center justify-center border-2 border-dashed border-purple-400">
-                <span className="text-4xl">🎥</span>
+              <div className="w-48 h-48 mx-auto bg-purple-500/20 rounded-2xl flex items-center justify-center border-2 border-dashed border-purple-400 mb-4">
+                <span className="text-6xl">🎥</span>
               </div>
-              <p className="text-purple-300 text-sm mt-2">
+              <p className="text-purple-300 text-lg font-medium mb-2">
                 Кружочек (до 1 минуты)
+              </p>
+              <p className="text-purple-200 text-sm mb-4">
+                Запишите короткое видео сообщение
               </p>
             </div>
           )}
           
-          <div className="flex items-center justify-center space-x-3">
+          <div className="flex items-center justify-center space-x-4">
             {!recording.isRecording ? (
               <button
-                onClick={startRecording}
-                className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors shadow-lg"
+                onClick={() => startRecording()}
+                className="flex items-center space-x-3 px-6 py-3 bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors shadow-lg font-medium"
               >
-                <span className="text-lg">🎥</span>
-                <span className="font-medium">Начать запись</span>
+                <span className="text-xl">🎥</span>
+                <span>Начать запись</span>
               </button>
             ) : (
               <button
                 onClick={stopRecording}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                className="flex items-center space-x-3 px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg font-medium"
               >
-                <span className="text-lg">⏹️</span>
-                <span className="font-medium">Остановить</span>
+                <span className="text-xl">⏹️</span>
+                <span>Остановить</span>
               </button>
             )}
             
             <button
               onClick={onCancel}
-              className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+              className="px-6 py-3 text-gray-300 hover:text-white transition-colors font-medium"
             >
               Отмена
             </button>
@@ -289,19 +397,24 @@ function VideoRecorder({
         <div className="space-y-4">
           <div className="text-center">
             <video 
+              ref={videoRef}
               controls 
               src={recording.videoUrl}
-              className="w-48 h-48 mx-auto rounded-lg bg-black"
-            />
-            <p className="text-purple-300 text-sm mt-2">
+              onPlay={handleVideoPlay}
+              className="w-80 h-80 mx-auto rounded-2xl bg-black shadow-lg"
+              preload="metadata"
+            >
+              Ваш браузер не поддерживает видео.
+            </video>
+            <p className="text-purple-300 text-sm mt-3">
               Длительность: {formatTime(recording.duration)}
             </p>
           </div>
           
-          <div className="flex items-center justify-center space-x-2">
+          <div className="flex items-center justify-center space-x-3">
             <button
               onClick={sendRecording}
-              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
             >
               Отправить
             </button>
@@ -310,7 +423,7 @@ function VideoRecorder({
                 cleanup()
                 startRecording()
               }}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="px-5 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
             >
               Перезаписать
             </button>
@@ -319,7 +432,7 @@ function VideoRecorder({
                 cleanup()
                 onCancel()
               }}
-              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              className="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
             >
               Отмена
             </button>
@@ -858,9 +971,10 @@ function PinnedMessage({
 }
 
 // Компонент для отображения медиа
+// Компонент для отображения медиа
 function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: boolean }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState(0)
   const fileUrls = message.fileUrl ? [message.fileUrl] : (message.fileUrls || [])
 
   if (fileUrls.length === 0) return null
@@ -868,17 +982,7 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
   const imageUrls = fileUrls.filter(url => url.match(/\.(jpg|jpeg|png|gif|webp|avif)$/i))
   const videoUrls = fileUrls.filter(url => url.match(/\.(mp4|mov|avi|webm|mkv)$/i))
 
-  const handleMediaClick = (url: string, index: number) => {
-    setSelectedImageIndex(index)
-    setIsModalOpen(true)
-  }
-
-  const handleDownloadMedia = async (url: string, event: React.MouseEvent) => {
-    event.stopPropagation()
-    const filename = getFileNameFromUrl(url)
-    await downloadFile(url, filename)
-  }
-
+  // Функции для определения размера и сетки
   const getGridClass = (count: number) => {
     if (count === 1) return "grid-cols-1"
     if (count === 2) return "grid-cols-2"
@@ -893,6 +997,25 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
     if (count === 3) return "h-32"
     if (count === 4) return "h-32"
     return "h-24"
+  }
+
+  const handleMediaClick = (url: string, index: number) => {
+    setSelectedMediaIndex(index)
+    setIsModalOpen(true)
+  }
+
+  const handleDownloadMedia = async (url: string, event: React.MouseEvent) => {
+    event.stopPropagation()
+    const filename = getFileNameFromUrl(url)
+    await downloadFile(url, filename)
+  }
+
+  // Функция для воспроизведения видео
+  const handleVideoPlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget
+    video.play().catch(error => {
+      console.error('Error playing video:', error)
+    })
   }
 
   return (
@@ -934,18 +1057,14 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
               <div key={index} className="relative cursor-pointer rounded-lg overflow-hidden border border-gray-300 group">
                 <video 
                   src={fileUrl}
-                  className="w-full h-auto max-h-64"
-                  controls={false}
+                  className="w-full h-auto max-h-64 rounded-lg"
+                  controls
                   preload="metadata"
+                  onPlay={handleVideoPlay}
                   onClick={() => handleMediaClick(fileUrl, index)}
                 >
                   Ваш браузер не поддерживает видео.
                 </video>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-12 h-12 bg-white bg-opacity-80 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">▶️</span>
-                  </div>
-                </div>
                 <button
                   onClick={(e) => handleDownloadMedia(fileUrl, e)}
                   className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
@@ -978,7 +1097,7 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                const currentUrl = imageUrls[selectedImageIndex] || videoUrls[selectedImageIndex]
+                const currentUrl = imageUrls[selectedMediaIndex] || videoUrls[selectedMediaIndex]
                 if (currentUrl) {
                   handleDownloadMedia(currentUrl, e)
                 }
@@ -989,12 +1108,13 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
               <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
             </button>
             
-            {imageUrls.length > 1 && (
+            {(imageUrls.length > 1 || videoUrls.length > 1) && (
               <>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    setSelectedImageIndex(prev => prev > 0 ? prev - 1 : imageUrls.length - 1)
+                    const totalMedia = imageUrls.length + videoUrls.length
+                    setSelectedMediaIndex(prev => prev > 0 ? prev - 1 : totalMedia - 1)
                   }}
                   className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white text-2xl bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
                 >
@@ -1003,32 +1123,34 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    setSelectedImageIndex(prev => prev < imageUrls.length - 1 ? prev + 1 : 0)
+                    const totalMedia = imageUrls.length + videoUrls.length
+                    setSelectedMediaIndex(prev => prev < totalMedia - 1 ? prev + 1 : 0)
                   }}
                   className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white text-2xl bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
                 >
                   ›
                 </button>
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-50 px-3 py-1 rounded-full text-sm">
-                  {selectedImageIndex + 1} / {imageUrls.length}
+                  {selectedMediaIndex + 1} / {imageUrls.length + videoUrls.length}
                 </div>
               </>
             )}
             
-            {imageUrls[selectedImageIndex] && (
+            {imageUrls[selectedMediaIndex] && (
               <img 
-                src={imageUrls[selectedImageIndex]} 
+                src={imageUrls[selectedMediaIndex]} 
                 alt="Просмотр"
                 className="max-w-full max-h-screen object-contain mx-auto"
               />
             )}
             
-            {videoUrls[selectedImageIndex] && (
+            {videoUrls[selectedMediaIndex] && (
               <video 
-                src={videoUrls[selectedImageIndex]}
+                src={videoUrls[selectedMediaIndex]}
                 className="max-w-full max-h-screen mx-auto"
                 controls
                 autoPlay
+                onPlay={handleVideoPlay}
               >
                 Ваш браузер не поддерживает видео.
               </video>
