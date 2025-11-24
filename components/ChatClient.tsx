@@ -1407,19 +1407,21 @@ function DateSeparator({ date }: { date: Date }) {
 
 // Компонент для отображения пересланного сообщения
 function ForwardedMessageHeader({ message }: { message: MessageWithFiles }) {
-  if (!message.isShared || !message.originalMessage) return null
+  if (message.isShared === true && message.originalMessage && message.originalMessage.id !== message.id) {
 
-  const originalUser = message.originalMessage.user
-  const displayName = originalUser.name && originalUser.surname 
-    ? `${originalUser.name} ${originalUser.surname}`
-    : originalUser.name || originalUser.surname || originalUser.email
 
-  return (
-    <div className="text-xs text-gray-500 mb-1 flex items-center space-x-1">
-      <FontAwesomeIcon icon={faShare} className="w-3 h-3" />
-      <span>Переслано от {displayName}</span>
-    </div>
-  )
+    const originalUser = message.originalMessage.user || undefined
+    const displayName = originalUser.name && originalUser.surname 
+      ? `${originalUser.name} ${originalUser.surname}`
+      : originalUser.name || originalUser.surname || originalUser.email
+
+    return (
+      <div className="text-xs text-gray-500 mb-1 flex items-center space-x-1">
+        <FontAwesomeIcon icon={faShare} className="w-3 h-3" />
+        <span>Переслано от {displayName}</span>
+      </div>
+    )
+  } else return null
 }
 
 // Компонент для отображения ответа на сообщение
