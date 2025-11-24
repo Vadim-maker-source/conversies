@@ -23,6 +23,7 @@ import { CheckCheck } from './animate-ui/icons/check-check'
 import { cn } from '@/lib/utils'
 import { Search } from './animate-ui/icons/search'
 import { useIsMobile } from '@/hooks/use-is-mobile'
+import { useChatUsersStatus, useUserStatus } from '@/hooks/useOnlineStatus'
 
 interface PendingFile {
   id: string
@@ -2593,6 +2594,54 @@ const animateMicrophone = () => {
 const [dragStartY, setDragStartY] = useState(0)
 const voiceButtonRef = useRef<HTMLButtonElement>(null)
 
+
+function UserStatus({ userId, showText = true }: { userId: number; showText?: boolean }) {
+  const status = useUserStatus(userId)
+  
+  if (!status) return null
+
+  const getStatusText = () => {
+    if (status.isOnline) return 'в сети'
+    if (status.isRecentlyOnline) return 'был(а) недавно'
+    
+    // Форматируем время последнего посещения
+    if (status.lastSeen) {
+      const now = new Date()
+      const lastSeen = new Date(status.lastSeen)
+      const diffMinutes = Math.floor((now.getTime() - lastSeen.getTime()) / (1000 * 60))
+      
+      if (diffMinutes < 1) return 'только что'
+      if (diffMinutes < 60) return `был(а) ${diffMinutes} мин назад`
+      if (diffMinutes < 1440) return `был(а) ${Math.floor(diffMinutes / 60)} ч назад`
+      
+      return `был(а) ${lastSeen.toLocaleDateString('ru-RU')}`
+    }
+    
+    return 'не в сети'
+  }
+
+  return (
+    <div className="flex items-center space-x-1">
+      <div 
+        className={`w-2 h-2 rounded-full ${
+          status.isOnline 
+            ? 'bg-green-500 animate-pulse' 
+            : status.isRecentlyOnline 
+              ? 'bg-yellow-500' 
+              : 'bg-gray-500'
+        }`}
+        title={getStatusText()}
+      />
+      {showText && (
+        <span className="text-xs text-gray-400">
+          {getStatusText()}
+        </span>
+      )}
+    </div>
+  )
+}
+
+
 // Обработчики для жеста "потянуть вверх"
 const handleVoiceButtonMouseDown = (e: React.MouseEvent) => {
   setIsDragging(true)
@@ -3144,7 +3193,14 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
     return otherMember ? `${otherMember.user.name} ${otherMember.user.surname}` : 'Приватный чат'
   }
 
-  const getChatDescription = () => {
+  const getOtherUser = (chatInfo: ChatWithDetails, currentUser: User) => {
+    if (chatInfo.type === 'PRIVATE') {
+      return chatInfo.members.find(member => member.userId !== currentUser.id)?.user
+    }
+    return null
+  }
+
+  const getChatDescription = (chatInfo: ChatWithDetails, currentUser: User) => {
     if (chatInfo.type === 'GROUP') {
       if (chatInfo.isChannel) {
         return 'Канал • Могут писать только администраторы'
@@ -3152,8 +3208,43 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
       const memberCount = chatInfo.members.length
       return `Групповой чат • ${memberCount} участников`
     }
-    const otherMember = chatInfo.members.find(member => member.userId !== currentUser.id)
-    return otherMember?.user.email || ''
+    
+    // Для приватного чата показываем статус собеседника
+    const otherUser = getOtherUser(chatInfo, currentUser)
+    if (otherUser) {
+      return (
+        <div className="flex items-center space-x-2">
+          <UserStatus userId={otherUser.id} showText={true} />
+        </div>
+      )
+    }
+  }
+
+  function GroupOnlineStatus({ chatId }: { chatId: number }) {
+    const usersStatus = useChatUsersStatus(chatId)
+    const onlineUsers = usersStatus.filter(user => user.isOnline)
+    
+    if (onlineUsers.length === 0) return null
+  
+    return (
+      <div className="flex items-center space-x-1 mt-1">
+        <div className="flex items-center space-x-1">
+          {onlineUsers.slice(0, 3).map(user => (
+            <div key={user.userId} className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-xs text-gray-400">
+                {user.name} {user.surname}
+              </span>
+            </div>
+          ))}
+        </div>
+        {onlineUsers.length > 3 && (
+          <span className="text-xs text-gray-500">
+            и ещё {onlineUsers.length - 3} онлайн
+          </span>
+        )}
+      </div>
+    )
   }
 
   const canSendMessages = () => {
@@ -3276,18 +3367,14 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
                 <h1 className="text-xl font-semibold text-white">
                   {getChatName()}
                 </h1>
-                <p className="text-sm text-gray-400">
-                  {getChatDescription()}
-                </p>
+                  {getChatDescription(chatInfo, currentUser)}
               </div>
             </div>
           </Link>
           
-          {chatInfo.type === 'GROUP' && chatInfo.isChannel && (
-            <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-              Канал
-            </span>
-          )}
+          {chatInfo.type === 'GROUP' && (
+                <GroupOnlineStatus chatId={chatInfo.id} />
+              )}
           
           <AnimateIcon animateOnHover>
           <button

@@ -23,6 +23,9 @@ model User {
   twoFactorEnabled Boolean  @default(false)
   coins            Int      @default(0)
 
+  lastSeen         DateTime @default(now())
+  isOnline         Boolean  @default(false)
+
   accounts         Account[]
   
   // Поля для 2FA

@@ -459,7 +459,7 @@ export async function updateUserSettings(formData: FormData) {
     }
 
     const updatedUser = await prisma.user.update({
-      where: { 
+      where: {
         id: session.user.id
       },
       data: {

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { User } from "../lib/types"
 import { getCurrentUser } from "../lib/api/user"
+import { updateOnlineStatus } from "../lib/api/online-status"
 
 const RootLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname()
@@ -19,16 +20,52 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => {
 
   const [user, setUser] = useState<User | null>(null)
     
-    useEffect(() => {
-      const checkAuth = async () => {
-        const currentUser = await getCurrentUser();
-        if(currentUser){
-          setUser(currentUser)
+  useEffect(() => {
+    const checkAuth = async () => {
+      const currentUser = await getCurrentUser();
+      if(currentUser){
+        setUser(currentUser)
+        // Устанавливаем статус "в сети" при загрузке
+        await updateOnlineStatus(true)
+      }
+    }
+
+    checkAuth()
+  }, [])
+
+  // Обработка событий для установки статуса "не в сети"
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Устанавливаем статус "не в сети" при закрытии вкладки/браузера
+      if (user) {
+        navigator.sendBeacon('/api/update-status', JSON.stringify({ isOnline: false }))
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (user) {
+        // Если вкладка становится неактивной, устанавливаем статус "не в сети"
+        if (document.hidden) {
+          updateOnlineStatus(false)
+        } else {
+          updateOnlineStatus(true)
         }
       }
-  
-      checkAuth()
-    }, [])
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      
+      // Устанавливаем статус "не в сети" при размонтировании компонента
+      if (user) {
+        updateOnlineStatus(false)
+      }
+    }
+  }, [user])
 
   return (
     <div 
