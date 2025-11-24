@@ -74,6 +74,7 @@ interface VoiceRecording {
 }
 
 // Компонент для записи видеосообщений
+// Компонент для записи видеосообщений
 function VideoRecorder({ 
   onRecordingComplete,
   onCancel
@@ -110,23 +111,50 @@ function VideoRecorder({
     }
   }
 
-  // Переключение камеры
+  // Переключение камеры во время записи
   const switchCamera = async () => {
-    if (!recording.stream || availableCameras.length <= 1) return
+    if (!recording.isRecording || availableCameras.length <= 1) return
     
-    const nextCameraIndex = (currentCameraIndex + 1) % availableCameras.length
-    setCurrentCameraIndex(nextCameraIndex)
-    
-    // Останавливаем текущую запись если она идет
-    if (recording.isRecording) {
-      stopRecording()
+    try {
+      const nextCameraIndex = (currentCameraIndex + 1) % availableCameras.length
+      const currentCamera = availableCameras[nextCameraIndex]
+      
+      // Получаем новый поток с другой камерой
+      const newStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          deviceId: currentCamera.deviceId ? { exact: currentCamera.deviceId } : undefined,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
+        }, 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        }
+      })
+
+      // Обновляем видео элемент с новым потоком
+      if (videoRef.current) {
+        videoRef.current.srcObject = newStream
+        await videoRef.current.play()
+      }
+
+      // Заменяем старый поток на новый
+      if (recording.stream) {
+        recording.stream.getTracks().forEach(track => track.stop())
+      }
+
+      setRecording(prev => ({
+        ...prev,
+        stream: newStream
+      }))
+      setCurrentCameraIndex(nextCameraIndex)
+
+    } catch (error) {
+      console.error('Error switching camera:', error)
+      alert('Ошибка при переключении камеры')
     }
-    
-    // Освобождаем текущий поток
-    recording.stream.getTracks().forEach(track => track.stop())
-    
-    // Запускаем запись с новой камеры
-    await startRecording(nextCameraIndex)
   }
 
   const startRecording = async (cameraIndex: number = 0) => {
@@ -211,7 +239,9 @@ function VideoRecorder({
         }))
 
         // Освобождаем поток
-        stream.getTracks().forEach(track => track.stop())
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop())
+        }
       }
 
       mediaRecorder.start(1000) // Собираем данные каждую секунду
@@ -222,6 +252,7 @@ function VideoRecorder({
         duration: 0,
         stream
       }))
+      setCurrentCameraIndex(cameraIndex)
 
       // Таймер с ограничением в 1 минуту
       timerRef.current = setInterval(() => {
@@ -285,6 +316,7 @@ function VideoRecorder({
       timer: 0,
       stream: null
     })
+    setCurrentCameraIndex(0)
   }
 
   const formatTime = (seconds: number) => {
