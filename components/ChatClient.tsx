@@ -77,10 +77,10 @@ interface VoiceRecording {
 // Компонент для записи видеосообщений
 function VideoRecorder({ 
   onRecordingComplete,
-  onCancel
+  onRecordingCancel
 }: {
   onRecordingComplete: (videoBlob: Blob) => void
-  onCancel: () => void
+  onRecordingCancel: () => void
 }) {
   const [recording, setRecording] = useState<VideoRecording>({
     isRecording: false,
@@ -119,6 +119,16 @@ function VideoRecorder({
       const nextCameraIndex = (currentCameraIndex + 1) % availableCameras.length
       const currentCamera = availableCameras[nextCameraIndex]
       
+      // Останавливаем текущую запись
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop()
+      }
+
+      // Останавливаем текущий поток
+      if (recording.stream) {
+        recording.stream.getTracks().forEach(track => track.stop())
+      }
+
       // Получаем новый поток с другой камерой
       const newStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
@@ -140,10 +150,56 @@ function VideoRecorder({
         await videoRef.current.play()
       }
 
-      // Заменяем старый поток на новый
-      if (recording.stream) {
-        recording.stream.getTracks().forEach(track => track.stop())
+      // Пробуем разные MIME types для совместимости
+      const mimeTypes = [
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm;codecs=h264,opus',
+        'video/webm',
+        'video/mp4'
+      ]
+
+      let supportedMimeType = ''
+      for (const mimeType of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+          supportedMimeType = mimeType
+          break
+        }
       }
+
+      // Создаем новый MediaRecorder с новым потоком
+      const newMediaRecorder = new MediaRecorder(newStream, {
+        mimeType: supportedMimeType
+      })
+
+      mediaRecorderRef.current = newMediaRecorder
+
+      newMediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data)
+        }
+      }
+
+      newMediaRecorder.onstop = () => {
+        const mimeType = supportedMimeType || 'video/webm'
+        const videoBlob = new Blob(chunksRef.current, { type: mimeType })
+        const videoUrl = URL.createObjectURL(videoBlob)
+        
+        setRecording(prev => ({
+          ...prev,
+          videoBlob,
+          videoUrl,
+          isRecording: false
+        }))
+
+        // Освобождаем поток
+        if (newStream) {
+          newStream.getTracks().forEach(track => track.stop())
+        }
+      }
+
+      // Запускаем запись с новым потоком
+      newMediaRecorder.start(1000)
 
       setRecording(prev => ({
         ...prev,
@@ -317,6 +373,7 @@ function VideoRecorder({
       stream: null
     })
     setCurrentCameraIndex(0)
+    chunksRef.current = []
   }
 
   const formatTime = (seconds: number) => {
@@ -383,6 +440,11 @@ function VideoRecorder({
               <p className="text-red-400 text-sm mt-3">
                 Запись... {60 - recording.timer}с осталось
               </p>
+              {availableCameras.length > 1 && (
+                <p className="text-purple-300 text-xs mt-1">
+                  Доступно камер: {availableCameras.length}
+                </p>
+              )}
             </div>
           ) : (
             <div className="text-center">
@@ -418,7 +480,7 @@ function VideoRecorder({
             )}
             
             <button
-              onClick={onCancel}
+              onClick={onRecordingCancel}
               className="px-6 py-3 text-gray-300 hover:text-white transition-colors font-medium"
             >
               Отмена
@@ -462,7 +524,7 @@ function VideoRecorder({
             <button
               onClick={() => {
                 cleanup()
-                onCancel()
+                onRecordingCancel()
               }}
               className="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
             >
@@ -3302,7 +3364,7 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
 {showVideoRecorder && (
   <VideoRecorder
     onRecordingComplete={handleSendVideoMessage}
-    onCancel={() => setShowVideoRecorder(false)}
+    onRecordingCancel={() => setShowVideoRecorder(false)}
   />
 )}
         <div className="bg-black/40 rounded-xl px-6 py-4 flex-shrink-0 relative">
