@@ -17,6 +17,7 @@ import { signOut } from 'next-auth/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowLeft, faArrowRight, faSearch, faUsers, faUser, faHashtag } from '@fortawesome/free-solid-svg-icons'
 import { Unbounded } from 'next/font/google'
+import { useIsMobile } from '@/hooks/use-is-mobile'
 
 export type SearchUser = {
   id: number
@@ -46,6 +47,7 @@ export type SearchResults = {
 }
 
 export default function Sidebar() {
+  const isMobile = useIsMobile()
   const [isExpanded, setIsExpanded] = useState(true)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [chats, setChats] = useState<ChatWithDetails[]>([])

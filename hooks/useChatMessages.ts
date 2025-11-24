@@ -115,6 +115,9 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
 
     // Определяем, является ли это голосовым сообщением
     const isVoiceMessage = Boolean(!content && fileUrl && fileUrl.match(/\.(mp3|wav|ogg|webm)$/i))
+    
+    // Определяем, является ли это видеосообщением
+    const isVideoMessage = Boolean(content === '🎥 Видеосообщение' && fileUrl && fileUrl.match(/\.(mp4|webm|mov)$/i))
 
     // Создаем временное сообщение
     const tempMessage: TemporaryMessage = {
@@ -138,7 +141,7 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
       readCount: 0,
       totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
       isReadByCurrentUser: true,
-      // Добавляем флаг голосового сообщения
+      // Добавляем флаги типов сообщений
       isVoiceMessage,
       reactions: {},
       readBy: []
@@ -154,6 +157,9 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
       if (isVoiceMessage) {
         // Отправляем голосовое сообщение
         result = await sendVoiceMessage(chatId, fileUrl!)
+      } else if (isVideoMessage) {
+        // Отправляем видеосообщение как обычное сообщение с файлом
+        result = await sendMessage(chatId, content, fileUrl, undefined, fileUrls, replyToId)
       } else {
         // Отправляем обычное сообщение
         result = await sendMessage(chatId, content, fileUrl, imageUrl, fileUrls, replyToId)
@@ -185,7 +191,7 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
     }
   }
 
-  // Новая функция для отправки голосового сообщения
+  // Функция для отправки голосового сообщения
   const sendVoiceMessageOptimistic = async (voiceFileUrl: string, replyToId?: number) => {
     const tempId = Date.now()
     
@@ -248,6 +254,77 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
     }
   }
 
+  // НОВАЯ ФУНКЦИЯ: Отправка видеосообщения
+  const sendVideoMessageOptimistic = async (videoFileUrl: string, replyToId?: number) => {
+    const tempId = Date.now()
+    
+    // Создаем временное видеосообщение
+    const tempMessage: TemporaryMessage = {
+      id: tempId,
+      content: '🎥 Видеосообщение',
+      userId: currentUser.id,
+      chatId,
+      messageId: replyToId || null,
+      imageUrl: null,
+      fileUrl: videoFileUrl,
+      fileUrls: [videoFileUrl],
+      isEdited: false,
+      isShared: false,
+      user: currentUser,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      botId: null,
+      pollId: null,
+      readStatus: 'sent',
+      readCount: 0,
+      totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
+      isReadByCurrentUser: true,
+      isVoiceMessage: false,
+      reactions: {},
+      readBy: []
+    }
+
+    // Оптимистичное обновление
+    queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
+      return [...old, tempMessage as MessageWithFiles]
+    })
+
+    try {
+      // Используем обычную функцию sendMessage для видеосообщений
+      const result = await sendMessage(
+        chatId, 
+        '🎥 Видеосообщение', 
+        videoFileUrl, 
+        undefined, 
+        [videoFileUrl], 
+        replyToId
+      )
+      
+      // Обновляем сообщение с данными с сервера
+      queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
+        return old.map(msg => {
+          if (msg.id === tempId) {
+            return {
+              ...result,
+              fileUrls: msg.fileUrls || result.fileUrls || [],
+              readStatus: 'sent',
+              readCount: 0,
+              totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
+              isReadByCurrentUser: true,
+              isVoiceMessage: false
+            } as unknown as MessageWithFiles
+          }
+          return msg
+        })
+      })
+    } catch (error) {
+      queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
+        return old.filter(msg => msg.id !== tempId)
+      })
+      throw error
+    }
+  }
+
   return {
     messages: messages || [],
     isLoading,
@@ -255,6 +332,7 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
     addMessage,
     sendMessageOptimistic,
     sendVoiceMessageOptimistic,
+    sendVideoMessageOptimistic, // ДОБАВЛЕНО
     markAsRead,
     updateMessageReactions
   }

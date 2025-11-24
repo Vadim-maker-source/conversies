@@ -2356,3 +2356,100 @@ export async function sendVoiceMessage(chatId: number, voiceFileUrl: string) {
     throw error
   }
 }
+
+export async function sendVideoMessage(chatId: number, videoFileUrl: string) {
+  const currentUser = await getCurrentUser()
+  if (!currentUser) throw new Error('Не авторизован')
+
+  try {
+    const chatMember = await prisma.chatMember.findUnique({
+      where: {
+        userId_chatId: {
+          userId: currentUser.id,
+          chatId
+        }
+      }
+    })
+
+    if (!chatMember) throw new Error('Не участник чата')
+
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId }
+    })
+
+    if (chat?.isChannel && !['ADMIN', 'OWNER'].includes(chatMember.role)) {
+      throw new Error('В этом канале могут писать только администраторы')
+    }
+
+    // Создаем сообщение с видео файлом
+    const message = await prisma.message.create({
+      data: {
+        content: '🎥 Видеосообщение',
+        userId: currentUser.id,
+        chatId,
+        fileUrl: videoFileUrl
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            email: true
+          }
+        },
+        replyTo: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true
+              }
+            }
+          }
+        },
+        Reaction: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                avatar: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    // Обновляем время изменения чата
+    await prisma.chat.update({
+      where: { id: chatId },
+      data: { updatedAt: new Date() }
+    })
+
+    // Преобразуем реакции в нужный формат
+    const reactions = message.Reaction.reduce((acc, reaction) => {
+      if (!acc[reaction.emoji]) {
+        acc[reaction.emoji] = []
+      }
+      acc[reaction.emoji].push(reaction.user)
+      return acc
+    }, {} as Record<string, any[]>)
+
+    return {
+      ...message,
+      fileUrls: [videoFileUrl],
+      reactions,
+      readCount: 0,
+      totalMembers: 0,
+      readStatus: 'sent' as const,
+      isReadByCurrentUser: false
+    }
+  } catch (error) {
+    console.error('Error sending video message:', error)
+    throw error
+  }
+}

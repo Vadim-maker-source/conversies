@@ -149,7 +149,20 @@ isVoiceMessage?: boolean;
 
 // Вспомогательный тип для создания временных сообщений
 export type TemporaryMessage = Omit<Message, 'id'> & {
-id: number | string;
-fileUrls?: string[];
-isVoiceMessage?: boolean;
+  id: number | string;
+  fileUrls?: string[];
+  isVoiceMessage?: boolean;
+  // Добавить поля для прочтения
+  readStatus?: 'sent' | 'read' | 'unread';
+  readCount?: number;
+  totalMembers?: number;
+  isReadByCurrentUser?: boolean;
+  reactions?: Record<string, User[]>;
+  readBy?: Array<{
+    id: number;
+    userId: number;
+    messageId: number;
+    readAt: Date;
+    user: User;
+  }>;
 }

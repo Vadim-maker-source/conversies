@@ -22,6 +22,7 @@ import { Check } from './animate-ui/icons/check'
 import { CheckCheck } from './animate-ui/icons/check-check'
 import { cn } from '@/lib/utils'
 import { Search } from './animate-ui/icons/search'
+import { useIsMobile } from '@/hooks/use-is-mobile'
 
 interface PendingFile {
   id: string
@@ -53,12 +54,280 @@ export type MessageWithFiles = Message & {
   isVoiceMessage?: boolean
 }
 
+interface VideoRecording {
+  isRecording: boolean
+  videoBlob: Blob | null
+  videoUrl: string | null
+  duration: number
+  timer: number
+  stream: MediaStream | null
+}
+
+// Обновить VoiceRecording интерфейс
 interface VoiceRecording {
   isRecording: boolean
   audioBlob: Blob | null
   audioUrl: string | null
   duration: number
   timer: number
+  stream: MediaStream | null
+}
+
+function VideoRecorder({ 
+  onRecordingComplete,
+  onCancel
+}: {
+  onRecordingComplete: (videoBlob: Blob) => void
+  onCancel: () => void
+}) {
+  const [recording, setRecording] = useState<VideoRecording>({
+    isRecording: false,
+    videoBlob: null,
+    videoUrl: null,
+    duration: 0,
+    timer: 0,
+    stream: null
+  })
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 480 },
+          height: { ideal: 480 },
+          aspectRatio: 1 
+        }, 
+        audio: true 
+      })
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp9,opus'
+      })
+      mediaRecorderRef.current = mediaRecorder
+      chunksRef.current = []
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data)
+        }
+      }
+
+      mediaRecorder.onstop = () => {
+        const videoBlob = new Blob(chunksRef.current, { type: 'video/webm' })
+        const videoUrl = URL.createObjectURL(videoBlob)
+        
+        setRecording(prev => ({
+          ...prev,
+          videoBlob,
+          videoUrl,
+          isRecording: false
+        }))
+
+        // Освобождаем поток
+        stream.getTracks().forEach(track => track.stop())
+      }
+
+      mediaRecorder.start()
+      setRecording(prev => ({
+        ...prev,
+        isRecording: true,
+        timer: 0,
+        duration: 0,
+        stream
+      }))
+
+      // Таймер с ограничением в 1 минуту
+      timerRef.current = setInterval(() => {
+        setRecording(prev => {
+          const newTimer = prev.timer + 1
+          const newDuration = prev.duration + 1
+          
+          // Автоматическая остановка через 60 секунд
+          if (newTimer >= 60) {
+            stopRecording()
+          }
+          
+          return {
+            ...prev,
+            timer: newTimer,
+            duration: newDuration
+          }
+        })
+      }, 1000)
+
+    } catch (error) {
+      console.error('Error starting video recording:', error)
+      alert('Не удалось получить доступ к камере и микрофону')
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && recording.isRecording) {
+      mediaRecorderRef.current.stop()
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+    }
+  }
+
+  const sendRecording = () => {
+    if (recording.videoBlob) {
+      onRecordingComplete(recording.videoBlob)
+    }
+    cleanup()
+  }
+
+  const cleanup = () => {
+    if (recording.videoUrl) {
+      URL.revokeObjectURL(recording.videoUrl)
+    }
+    if (recording.stream) {
+      recording.stream.getTracks().forEach(track => track.stop())
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+    setRecording({
+      isRecording: false,
+      videoBlob: null,
+      videoUrl: null,
+      duration: 0,
+      timer: 0,
+      stream: null
+    })
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  return (
+    <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 rounded-xl p-4 mb-3">
+      {!recording.videoUrl ? (
+        <div className="space-y-4">
+          {recording.isRecording ? (
+            <div className="text-center">
+              <div className="relative w-48 h-48 mx-auto bg-black rounded-full overflow-hidden border-4 border-red-500">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-2 right-2 flex items-center space-x-1">
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                  <span className="text-red-400 text-xs font-bold">
+                    {formatTime(recording.timer)}
+                  </span>
+                </div>
+                <div className="absolute bottom-2 left-0 right-0">
+                  <div className="w-full bg-gray-600 rounded-full h-1">
+                    <div 
+                      className="bg-red-500 h-1 rounded-full transition-all duration-1000"
+                      style={{ width: `${(recording.timer / 60) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <p className="text-red-400 text-sm mt-2">
+                Запись... {60 - recording.timer}с осталось
+              </p>
+            </div>
+          ) : (
+            <div className="text-center">
+              <div className="w-32 h-32 mx-auto bg-purple-500/20 rounded-full flex items-center justify-center border-2 border-dashed border-purple-400">
+                <span className="text-4xl">🎥</span>
+              </div>
+              <p className="text-purple-300 text-sm mt-2">
+                Кружочек (до 1 минуты)
+              </p>
+            </div>
+          )}
+          
+          <div className="flex items-center justify-center space-x-3">
+            {!recording.isRecording ? (
+              <button
+                onClick={startRecording}
+                className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors shadow-lg"
+              >
+                <span className="text-lg">🎥</span>
+                <span className="font-medium">Начать запись</span>
+              </button>
+            ) : (
+              <button
+                onClick={stopRecording}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+              >
+                <span className="text-lg">⏹️</span>
+                <span className="font-medium">Остановить</span>
+              </button>
+            )}
+            
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="text-center">
+            <video 
+              controls 
+              src={recording.videoUrl}
+              className="w-48 h-48 mx-auto rounded-lg bg-black"
+            />
+            <p className="text-purple-300 text-sm mt-2">
+              Длительность: {formatTime(recording.duration)}
+            </p>
+          </div>
+          
+          <div className="flex items-center justify-center space-x-2">
+            <button
+              onClick={sendRecording}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+            >
+              Отправить
+            </button>
+            <button
+              onClick={() => {
+                cleanup()
+                startRecording()
+              }}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Перезаписать
+            </button>
+            <button
+              onClick={() => {
+                cleanup()
+                onCancel()
+              }}
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // Компонент для отображения голосового сообщения
@@ -186,7 +455,8 @@ function VoiceRecorder({
     audioBlob: null,
     audioUrl: null,
     duration: 0,
-    timer: 0
+    timer: 0,
+    stream: null
   })
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -271,7 +541,8 @@ function VoiceRecorder({
       audioBlob: null,
       audioUrl: null,
       duration: 0,
-      timer: 0
+      timer: 0,
+      stream: null
     })
   }
 
@@ -1875,6 +2146,7 @@ function groupMessagesByDate(messages: Message[]) {
 }
 
 export default function ChatClient({ currentUser, chatInfo }: ChatClientProps) {
+  const isMobile = useIsMobile()
   const [newMessage, setNewMessage] = useState('')
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
   const [isUploading, setIsUploading] = useState(false)
@@ -1895,6 +2167,16 @@ export default function ChatClient({ currentUser, chatInfo }: ChatClientProps) {
 
   const [isRecording, setIsRecording] = useState(false)
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
+
+  const [showVideoRecorder, setShowVideoRecorder] = useState(false)
+const [videoRecording, setVideoRecording] = useState<VideoRecording>({
+  isRecording: false,
+  videoBlob: null,
+  videoUrl: null,
+  duration: 0,
+  timer: 0,
+  stream: null
+})
 
   const handleSendVoiceMessage = async (audioBlob: Blob) => {
     setIsUploading(true)
@@ -1936,6 +2218,7 @@ export default function ChatClient({ currentUser, chatInfo }: ChatClientProps) {
     isLoading, 
     sendMessageOptimistic,
     sendVoiceMessageOptimistic,
+    sendVideoMessageOptimistic,
     markAsRead
   } = useChatMessages({
     chatId: chatInfo.id,
@@ -1948,6 +2231,95 @@ export default function ChatClient({ currentUser, chatInfo }: ChatClientProps) {
     const matches = text.match(urlRegex)
     return matches || []
   }
+
+  const [isDragging, setIsDragging] = useState(false)
+const [dragStartY, setDragStartY] = useState(0)
+const voiceButtonRef = useRef<HTMLButtonElement>(null)
+
+// Обработчики для жеста "потянуть вверх"
+const handleVoiceButtonMouseDown = (e: React.MouseEvent) => {
+  setIsDragging(true)
+  setDragStartY(e.clientY)
+}
+
+const handleVoiceButtonTouchStart = (e: React.TouchEvent) => {
+  setIsDragging(true)
+  setDragStartY(e.touches[0].clientY)
+}
+
+const handleDocumentMouseMove = (e: MouseEvent) => {
+  if (!isDragging) return
+  
+  const deltaY = dragStartY - e.clientY
+  if (deltaY > 100) { // Потянули вверх на 100px
+    setShowVideoRecorder(true)
+    setShowVoiceRecorder(false)
+    setIsDragging(false)
+  }
+}
+
+const handleDocumentTouchMove = (e: TouchEvent) => {
+  if (!isDragging) return
+  
+  const deltaY = dragStartY - e.touches[0].clientY
+  if (deltaY > 100) { // Потянули вверх на 100px
+    setShowVideoRecorder(true)
+    setShowVoiceRecorder(false)
+    setIsDragging(false)
+  }
+}
+
+const handleDocumentMouseUp = () => {
+  setIsDragging(false)
+}
+
+const handleDocumentTouchEnd = () => {
+  setIsDragging(false)
+}
+
+// Добавить useEffect для обработчиков событий
+useEffect(() => {
+  if (isDragging) {
+    document.addEventListener('mousemove', handleDocumentMouseMove)
+    document.addEventListener('touchmove', handleDocumentTouchMove)
+    document.addEventListener('mouseup', handleDocumentMouseUp)
+    document.addEventListener('touchend', handleDocumentTouchEnd)
+  }
+
+  return () => {
+    document.removeEventListener('mousemove', handleDocumentMouseMove)
+    document.removeEventListener('touchmove', handleDocumentTouchMove)
+    document.removeEventListener('mouseup', handleDocumentMouseUp)
+    document.removeEventListener('touchend', handleDocumentTouchEnd)
+  }
+}, [isDragging, dragStartY])
+
+// В компоненте ChatClient заменить handleSendVideoMessage:
+const handleSendVideoMessage = async (videoBlob: Blob) => {
+  setIsUploading(true)
+  try {
+    // Создаем FormData для загрузки видео файла
+    const formData = new FormData()
+    const videoFile = new File([videoBlob], `video-${Date.now()}.webm`, {
+      type: 'video/webm'
+    })
+    formData.append('file', videoFile)
+
+    // Загружаем файл
+    const uploadResult = await uploadFile(formData)
+    
+    // Отправляем видеосообщение используя новую функцию
+    await sendVideoMessageOptimistic(uploadResult.url, replyingTo?.id)
+    
+    setShowVideoRecorder(false)
+    setAutoScroll(true)
+  } catch (error) {
+    console.error('Error sending video message:', error)
+    alert('Ошибка при отправке видеосообщения')
+  } finally {
+    setIsUploading(false)
+  }
+}
   
   // Обновите useEffect для обработки ссылок
   useEffect(() => {
@@ -2574,17 +2946,6 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
     )
   }
 
-  if (showVoiceRecorder) {
-    return (
-      <div className="bg-black/40 rounded-xl px-6 py-4 flex-shrink-0">
-        <VoiceRecorder
-          onRecordingComplete={handleSendVoiceMessage}
-          onCancel={() => setShowVoiceRecorder(false)}
-        />
-      </div>
-    )
-  }
-
   return (
     <div className="flex-1 flex flex-col h-screen relative p-4">
       {/* Шапка чата */}
@@ -2776,6 +3137,20 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
 
       {/* Форма отправки сообщения */}
       {canSendMessages() ? (
+        <div className="flex-shrink-0">
+          {showVoiceRecorder && (
+          <VoiceRecorder
+            onRecordingComplete={handleSendVoiceMessage}
+            onCancel={() => setShowVoiceRecorder(false)}
+          />
+        )}
+
+{showVideoRecorder && (
+  <VideoRecorder
+    onRecordingComplete={handleSendVideoMessage}
+    onCancel={() => setShowVideoRecorder(false)}
+  />
+)}
         <div className="bg-black/40 rounded-xl px-6 py-4 flex-shrink-0 relative">
           <form onSubmit={handleSendMessage} className="flex space-x-4 items-center">
             <button
@@ -2835,17 +3210,42 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
               <FontAwesomeIcon icon={faTrash} />
             </button>
 
+            {isDragging && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 pointer-events-none">
+    <div className="bg-white/90 rounded-xl p-6 text-center">
+      <div className="text-4xl mb-4">⬆️</div>
+      <p className="text-lg font-medium text-gray-800">
+        Тяните вверх для записи видео
+      </p>
+      <p className="text-sm text-gray-600 mt-2">
+        Отпустите, чтобы начать запись кружочка
+      </p>
+    </div>
+  </div>
+)}
+
             {!newMessage.trim() && pendingFiles.length === 0 && !editingMessage && (
-            <button
-              type="button"
-              onClick={() => setShowVoiceRecorder(true)}
-              disabled={isUploading}
-              className="flex-shrink-0 h-10 w-10 text-white rounded-full hover:opacity-70 disabled:opacity-50 flex items-center justify-center transition-colors cursor-pointer"
-              title="Записать голосовое сообщение"
-            >
-              <FontAwesomeIcon icon={faMicrophone} className="text-xl" />
-            </button>
-          )}
+  <button
+    ref={voiceButtonRef}
+    type="button"
+    onMouseDown={handleVoiceButtonMouseDown}
+    onTouchStart={handleVoiceButtonTouchStart}
+    onClick={() => {
+      setShowVoiceRecorder(true)
+      setShowVideoRecorder(false)
+    }}
+    disabled={isUploading}
+    className="flex-shrink-0 h-10 w-10 text-white rounded-full hover:opacity-70 disabled:opacity-50 flex items-center justify-center transition-colors cursor-pointer relative group"
+    title="Удерживайте и тяните вверх для записи видео"
+  >
+    <FontAwesomeIcon icon={faMicrophone} className="text-xl" />
+    
+    {/* Подсказка при наведении */}
+    <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 px-3 py-1 bg-black/80 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+      Удерживайте и тяните вверх для записи видео
+    </div>
+  </button>
+)}
             
             <button
               type="submit"
@@ -2862,6 +3262,7 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
               onClose={() => setShowStickers(false)}
             />
           )}
+        </div>
         </div>
       ) : (
         <div className="bg-yellow-50 border-t border-yellow-200 p-4 text-center flex-shrink-0">
