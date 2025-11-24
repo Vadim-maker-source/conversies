@@ -73,7 +73,12 @@ interface VoiceRecording {
   stream: MediaStream | null
 }
 
-// Компонент для записи видеосообщений
+interface MicrophoneAnimation {
+  isAnimating: boolean
+  scale: number
+  opacity: number
+}
+
 // Компонент для записи видеосообщений
 function VideoRecorder({ 
   onRecordingComplete,
@@ -133,9 +138,9 @@ function VideoRecorder({
       const newStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           deviceId: currentCamera.deviceId ? { exact: currentCamera.deviceId } : undefined,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 }
+          width: { ideal: 400 },
+          height: { ideal: 400 },
+          aspectRatio: 1 // Для квадратного видео
         }, 
         audio: {
           echoCancellation: true,
@@ -225,9 +230,9 @@ function VideoRecorder({
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           deviceId: currentCamera.deviceId ? { exact: currentCamera.deviceId } : undefined,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 }
+          width: { ideal: 400 },
+          height: { ideal: 400 },
+          aspectRatio: 1 // Квадратное видео для кружочка
         }, 
         audio: {
           echoCancellation: true,
@@ -300,7 +305,7 @@ function VideoRecorder({
         }
       }
 
-      mediaRecorder.start(1000) // Собираем данные каждую секунду
+      mediaRecorder.start(1000)
       setRecording(prev => ({
         ...prev,
         isRecording: true,
@@ -390,37 +395,71 @@ function VideoRecorder({
     })
   }
 
+  // Компонент для кругового прогресс-бара
+  const CircularProgress = ({ progress, size = 80, strokeWidth = 4 }: { progress: number; size?: number; strokeWidth?: number }) => {
+    const radius = (size - strokeWidth) / 2
+    const circumference = radius * 2 * Math.PI
+    const strokeDashoffset = circumference - (progress / 100) * circumference
+
+    return (
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="transform -rotate-90">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="rgba(255, 255, 255, 0.3)"
+            strokeWidth={strokeWidth}
+            fill="none"
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="#ef4444"
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            className="transition-all duration-1000"
+          />
+        </svg>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 rounded-xl p-4 mb-3">
       {!recording.videoUrl ? (
         <div className="space-y-4">
           {recording.isRecording ? (
             <div className="text-center">
-              <div className="relative w-80 h-80 mx-auto bg-black rounded-2xl overflow-hidden border-4 border-red-500 shadow-2xl">
+              <div className="relative w-80 h-80 mx-auto rounded-full overflow-hidden border-4 border-red-500 shadow-2xl">
+                {/* Круговое видео */}
                 <video
                   ref={videoRef}
                   autoPlay
                   muted
                   playsInline
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover rounded-full"
                 />
                 
+                {/* Круговой прогресс-бар */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <CircularProgress 
+                    progress={(recording.timer / 60) * 100} 
+                    size={320}
+                    strokeWidth={8}
+                  />
+                </div>
+                
                 {/* Индикатор записи и времени */}
-                <div className="absolute top-4 left-4 flex items-center space-x-2 bg-black/70 rounded-full px-3 py-1">
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-2 bg-black/70 rounded-full px-3 py-1">
                   <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                   <span className="text-red-400 text-sm font-bold">
                     {formatTime(recording.timer)}
                   </span>
-                </div>
-                
-                {/* Прогресс бар */}
-                <div className="absolute bottom-4 left-4 right-4">
-                  <div className="w-full bg-gray-600 rounded-full h-2">
-                    <div 
-                      className="bg-red-500 h-2 rounded-full transition-all duration-1000"
-                      style={{ width: `${(recording.timer / 60) * 100}%` }}
-                    />
-                  </div>
                 </div>
                 
                 {/* Кнопка переключения камеры */}
@@ -448,14 +487,14 @@ function VideoRecorder({
             </div>
           ) : (
             <div className="text-center">
-              <div className="w-48 h-48 mx-auto bg-purple-500/20 rounded-2xl flex items-center justify-center border-2 border-dashed border-purple-400 mb-4">
+              <div className="w-48 h-48 mx-auto bg-purple-500/20 rounded-full flex items-center justify-center border-2 border-dashed border-purple-400 mb-4">
                 <span className="text-6xl">🎥</span>
               </div>
               <p className="text-purple-300 text-lg font-medium mb-2">
                 Кружочек (до 1 минуты)
               </p>
               <p className="text-purple-200 text-sm mb-4">
-                Запишите короткое видео сообщение
+                Запишите короткое видео сообщение в форме кружочка
               </p>
             </div>
           )}
@@ -490,16 +529,28 @@ function VideoRecorder({
       ) : (
         <div className="space-y-4">
           <div className="text-center">
-            <video 
-              ref={videoRef}
-              controls 
-              src={recording.videoUrl}
-              onPlay={handleVideoPlay}
-              className="w-80 h-80 mx-auto rounded-2xl bg-black shadow-lg"
-              preload="metadata"
-            >
-              Ваш браузер не поддерживает видео.
-            </video>
+            {/* Круговое видео для предпросмотра */}
+            <div className="relative w-80 h-80 mx-auto rounded-full overflow-hidden bg-black shadow-lg">
+              <video 
+                ref={videoRef}
+                controls 
+                src={recording.videoUrl}
+                onPlay={handleVideoPlay}
+                className="w-full h-full object-cover rounded-full"
+                preload="metadata"
+              >
+                Ваш браузер не поддерживает видео.
+              </video>
+              
+              {/* Круговой прогресс-бар для воспроизведения */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <CircularProgress 
+                  progress={0} 
+                  size={320}
+                  strokeWidth={8}
+                />
+              </div>
+            </div>
             <p className="text-purple-300 text-sm mt-3">
               Длительность: {formatTime(recording.duration)}
             </p>
@@ -1065,18 +1116,47 @@ function PinnedMessage({
 }
 
 // Компонент для отображения медиа
-// Компонент для отображения медиа
 function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: boolean }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(0)
+  const [videoProgress, setVideoProgress] = useState(0)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  
   const fileUrls = message.fileUrl ? [message.fileUrl] : (message.fileUrls || [])
+  const isVideoMessage = message.content === '🎥 Видеосообщение'
 
-  if (fileUrls.length === 0) return null
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
 
-  const imageUrls = fileUrls.filter(url => url.match(/\.(jpg|jpeg|png|gif|webp|avif)$/i))
-  const videoUrls = fileUrls.filter(url => url.match(/\.(mp4|mov|avi|webm|mkv)$/i))
+    const updateProgress = () => {
+      if (video.duration > 0) {
+        setVideoProgress((video.currentTime / video.duration) * 100)
+      }
+    }
 
-  // Функции для определения размера и сетки
+    video.addEventListener('timeupdate', updateProgress)
+    return () => video.removeEventListener('timeupdate', updateProgress)
+  }, [])
+
+  const handleVideoPlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget
+    video.play().catch(error => {
+      console.error('Error playing video:', error)
+    })
+  }
+
+  const handleMediaClick = (url: string, index: number) => {
+    setSelectedMediaIndex(index)
+    setIsModalOpen(true)
+  }
+
+  const handleDownloadMedia = async (url: string, event: React.MouseEvent) => {
+    event.stopPropagation()
+    const filename = getFileNameFromUrl(url)
+    await downloadFile(url, filename)
+  }
+
   const getGridClass = (count: number) => {
     if (count === 1) return "grid-cols-1"
     if (count === 2) return "grid-cols-2"
@@ -1093,23 +1173,43 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
     return "h-24"
   }
 
-  const handleMediaClick = (url: string, index: number) => {
-    setSelectedMediaIndex(index)
-    setIsModalOpen(true)
-  }
+  if (fileUrls.length === 0) return null
 
-  const handleDownloadMedia = async (url: string, event: React.MouseEvent) => {
-    event.stopPropagation()
-    const filename = getFileNameFromUrl(url)
-    await downloadFile(url, filename)
-  }
+  const imageUrls = fileUrls.filter(url => url.match(/\.(jpg|jpeg|png|gif|webp|avif)$/i))
+  const videoUrls = fileUrls.filter(url => url.match(/\.(mp4|mov|avi|webm|mkv)$/i))
 
-  // Функция для воспроизведения видео
-  const handleVideoPlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const video = e.currentTarget
-    video.play().catch(error => {
-      console.error('Error playing video:', error)
-    })
+  // Компонент для кругового прогресс-бара видео
+  const CircularVideoProgress = ({ progress, size = 60, strokeWidth = 3 }: { progress: number; size?: number; strokeWidth?: number }) => {
+    const radius = (size - strokeWidth) / 2
+    const circumference = radius * 2 * Math.PI
+    const strokeDashoffset = circumference - (progress / 100) * circumference
+
+    return (
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <svg width={size} height={size} className="transform -rotate-90">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="rgba(255, 255, 255, 0.3)"
+            strokeWidth={strokeWidth}
+            fill="none"
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={isOwn ? "#a855f7" : "#3b82f6"}
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            className="transition-all duration-100"
+          />
+        </svg>
+      </div>
+    )
   }
 
   return (
@@ -1148,10 +1248,13 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
         {videoUrls.length > 0 && (
           <div className="space-y-2 max-w-md">
             {videoUrls.map((fileUrl, index) => (
-              <div key={index} className="relative cursor-pointer rounded-lg overflow-hidden border border-gray-300 group">
+              <div key={index} className={`relative cursor-pointer overflow-hidden border border-gray-300 group ${
+                isVideoMessage ? 'rounded-full w-48 h-48' : 'rounded-lg'
+              }`}>
                 <video 
+                  ref={index === 0 ? videoRef : null}
                   src={fileUrl}
-                  className="w-full h-auto max-h-64 rounded-lg"
+                  className={`w-full h-auto ${isVideoMessage ? 'rounded-full object-cover' : 'rounded-lg max-h-64'}`}
                   controls
                   preload="metadata"
                   onPlay={handleVideoPlay}
@@ -1159,6 +1262,12 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
                 >
                   Ваш браузер не поддерживает видео.
                 </video>
+                
+                {/* Круговой прогресс-бар для видеосообщений */}
+                {isVideoMessage && (
+                  <CircularVideoProgress progress={videoProgress} />
+                )}
+                
                 <button
                   onClick={(e) => handleDownloadMedia(fileUrl, e)}
                   className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1239,15 +1348,24 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
             )}
             
             {videoUrls[selectedMediaIndex] && (
-              <video 
-                src={videoUrls[selectedMediaIndex]}
-                className="max-w-full max-h-screen mx-auto"
-                controls
-                autoPlay
-                onPlay={handleVideoPlay}
-              >
-                Ваш браузер не поддерживает видео.
-              </video>
+              <div className={`relative ${isVideoMessage ? 'w-96 h-96 mx-auto rounded-full overflow-hidden' : ''}`}>
+                <video 
+                  src={videoUrls[selectedMediaIndex]}
+                  className={`${isVideoMessage ? 'w-full h-full object-cover rounded-full' : 'max-w-full max-h-screen mx-auto'}`}
+                  controls
+                  autoPlay
+                  onPlay={handleVideoPlay}
+                >
+                  Ваш браузер не поддерживает видео.
+                </video>
+                
+                {/* Круговой прогресс-бар в модальном окне для видеосообщений */}
+                {isVideoMessage && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <CircularVideoProgress progress={videoProgress} size={380} strokeWidth={6} />
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -2394,6 +2512,29 @@ const [videoRecording, setVideoRecording] = useState<VideoRecording>({
   stream: null
 })
 
+const [microphoneAnimation, setMicrophoneAnimation] = useState<MicrophoneAnimation>({
+  isAnimating: false,
+  scale: 1,
+  opacity: 1
+})
+
+// Функция для запуска анимации поднимания микрофона
+const animateMicrophone = () => {
+  setMicrophoneAnimation({
+    isAnimating: true,
+    scale: 1.2,
+    opacity: 0.7
+  })
+  
+  setTimeout(() => {
+    setMicrophoneAnimation({
+      isAnimating: false,
+      scale: 1,
+      opacity: 1
+    })
+  }, 500)
+}
+
   const handleSendVoiceMessage = async (audioBlob: Blob) => {
     setIsUploading(true)
     try {
@@ -3440,26 +3581,51 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
   </div>
 )}
 
-            {!newMessage.trim() && pendingFiles.length === 0 && !editingMessage && (
+{!newMessage.trim() && pendingFiles.length === 0 && !editingMessage && (
   <button
     ref={voiceButtonRef}
     type="button"
-    onMouseDown={handleVoiceButtonMouseDown}
-    onTouchStart={handleVoiceButtonTouchStart}
+    onMouseDown={(e) => {
+      handleVoiceButtonMouseDown(e)
+      animateMicrophone() // Запускаем анимацию при нажатии
+    }}
+    onTouchStart={(e) => {
+      handleVoiceButtonTouchStart(e)
+      animateMicrophone() // Запускаем анимацию при касании
+    }}
     onClick={() => {
       setShowVoiceRecorder(true)
       setShowVideoRecorder(false)
+      animateMicrophone() // Запускаем анимацию при клике
     }}
     disabled={isUploading}
-    className="flex-shrink-0 h-10 w-10 text-white rounded-full hover:opacity-70 disabled:opacity-50 flex items-center justify-center transition-colors cursor-pointer relative group"
+    className="flex-shrink-0 h-10 w-10 text-white rounded-full hover:opacity-70 disabled:opacity-50 flex items-center justify-center transition-all duration-300 cursor-pointer relative group"
+    style={{
+      transform: `scale(${microphoneAnimation.scale})`,
+      opacity: microphoneAnimation.opacity,
+      background: microphoneAnimation.isAnimating 
+        ? 'radial-gradient(circle, rgba(168,85,247,0.8) 0%, rgba(147,51,234,0.6) 100%)' 
+        : 'transparent'
+    }}
     title="Удерживайте и тяните вверх для записи видео"
   >
-    <FontAwesomeIcon icon={faMicrophone} className="text-xl" />
+    <FontAwesomeIcon 
+      icon={faMicrophone} 
+      className="text-xl transition-all duration-300"
+      style={{
+        transform: microphoneAnimation.isAnimating ? 'scale(1.1)' : 'scale(1)'
+      }}
+    />
     
     {/* Подсказка при наведении */}
     <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 px-3 py-1 bg-black/80 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
       Удерживайте и тяните вверх для записи видео
     </div>
+
+    {/* Анимация пульсации */}
+    {microphoneAnimation.isAnimating && (
+      <div className="absolute inset-0 rounded-full border-2 border-purple-400 animate-ping opacity-60"></div>
+    )}
   </button>
 )}
             
