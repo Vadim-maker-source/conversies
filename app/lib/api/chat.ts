@@ -451,6 +451,19 @@ export async function getChatMessages(chatId: number, page: number = 1, limit: n
             bot: true // Добавляем для ответов
           }
         },
+        originalMessage: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                email: true,
+                avatar: true
+              }
+            }
+          }
+        },
         Reaction: {
           include: {
             user: {
@@ -1159,13 +1172,14 @@ export async function forwardMessage(messageId: number, targetChatId: number) {
             email: true
           }
         },
-        originalMessage: {
+        originalMessage: { // ВКЛЮЧАЕМ оригинальное сообщение с пользователем
           include: {
             user: {
               select: {
                 id: true,
                 name: true,
-                surname: true
+                surname: true,
+                email: true
               }
             }
           }

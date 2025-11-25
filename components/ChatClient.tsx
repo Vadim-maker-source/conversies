@@ -1,6 +1,6 @@
 'use client'
 
-import { uploadFile, updateMessage, deleteMessage, forwardMessage, getUserChats, addReaction, removeReaction, pinMessage, unpinMessage, getPinnedMessage, markMessageAsRead, markAllMessagesAsRead, searchMessagesInChat, getLinkPreview, sendVoiceMessage } from '@/app/lib/api/chat'
+import { uploadFile, updateMessage, deleteMessage, forwardMessage, getUserChats, addReaction, removeReaction, pinMessage, unpinMessage, getPinnedMessage, markMessageAsRead, markAllMessagesAsRead, searchMessagesInChat, getLinkPreview, sendVoiceMessage, createPrivateChat } from '@/app/lib/api/chat'
 import { User, ChatWithDetails, Message } from '@/app/lib/types'
 import { useChatMessages } from '@/hooks/useChatMessages'
 import { useState, useRef, useEffect } from 'react'
@@ -1405,20 +1405,36 @@ function DateSeparator({ date }: { date: Date }) {
   )
 }
 
+async function createChatByForward(otherUserId: number) {
+  const currentUser = await getCurrentUser()
+  if(currentUser){
+    if(currentUser.id === otherUserId) return null
+
+    await createPrivateChat(otherUserId)
+  }
+}
+
 // Компонент для отображения пересланного сообщения
 function ForwardedMessageHeader({ message }: { message: MessageWithFiles }) {
   if (message.isShared === true && message.originalMessage && message.originalMessage.id !== message.id) {
 
+    const getUserInitials = (user: User) => {
+        const first = user.name?.[0]?.toUpperCase() || ''
+        const second = user.surname?.[0]?.toUpperCase() || ''
+        return first + second || user.email[0].toUpperCase()
+    }
 
     const originalUser = message.originalMessage.user || undefined
-    const displayName = originalUser.name && originalUser.surname 
+    const displayName = originalUser.name && originalUser.surname
       ? `${originalUser.name} ${originalUser.surname}`
       : originalUser.name || originalUser.surname || originalUser.email
+    
+    const displayAvatar = originalUser.avatar ? <img src={originalUser.avatar} alt={String(originalUser.name)} className="w-5 h-5 rounded-full" /> : <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold"> {getUserInitials(originalUser)} </div>
 
     return (
-      <div className="text-xs text-gray-500 mb-1 flex items-center space-x-1">
+      <div className="text-xs text-white mb-1 flex items-center space-x-1">
         <FontAwesomeIcon icon={faShare} className="w-3 h-3" />
-        <span>Переслано от {displayName}</span>
+        <span>Переслано от <br /> <button className="cursor-pointer" onClick={() => createChatByForward(originalUser.id)}><span className="flex items-center gap-1">{displayAvatar}{displayName}</span></button></span>
       </div>
     )
   } else return null
