@@ -129,7 +129,7 @@ const Page = () => {
             <span className="animate-pulse">|</span>
           </div>
           <p className="text-gray-400 text-lg mt-4">
-            Мы делаем ваш бизнес лучше
+            Мы делаем ваше общение лучше
           </p>
         </div>
         
