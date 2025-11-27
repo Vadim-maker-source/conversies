@@ -1429,7 +1429,7 @@ function ForwardedMessageHeader({ message }: { message: MessageWithFiles }) {
       ? `${originalUser.name} ${originalUser.surname}`
       : originalUser.name || originalUser.surname || originalUser.email
     
-    const displayAvatar = originalUser.avatar ? <img src={originalUser.avatar} alt={String(originalUser.name)} className="w-5 h-5 rounded-full" /> : <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold"> {getUserInitials(originalUser)} </div>
+    const displayAvatar = originalUser.avatar ? <img src={originalUser.avatar} alt={String(originalUser.name)} className="w-5 h-5 rounded-full" /> : <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-[8px] text-center font-bold"> {getUserInitials(originalUser)} </div>
 
     return (
       <div className="text-xs text-white mb-1 flex items-center space-x-1">
