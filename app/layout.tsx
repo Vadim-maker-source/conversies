@@ -23,6 +23,14 @@ const unbounded = Unbounded({
 export const metadata: Metadata = {
   title: "Conversies | Современное решение для общения",
   description: "Conversies - современное решение для общения с друзьями и близкими",
+  openGraph: {
+    title: "Conversies | Современное решение для общения",
+    description: "Conversies - современное решение для общения с друзьями и близкими",
+    type: "website",
+    locale: "ru_RU",
+    url: "https://conversies.vercel.app",
+    siteName: "Conversies"
+  },
   icons: ["../public/assets/logo.PNG"],
   metadataBase: new URL('https://conversies.vercel.app'),
 };
