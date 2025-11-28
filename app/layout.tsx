@@ -23,7 +23,8 @@ const unbounded = Unbounded({
 export const metadata: Metadata = {
   title: "Conversies | Современное решение для общения",
   description: "Conversies - современное решение для общения с друзьями и близкими",
-  icons: "../public/assets/logo.PNG"
+  icons: ["../public/assets/logo.PNG"],
+  metadataBase: new URL('https://conversies.vercel.app'),
 };
 
 export default function RootLayout({
