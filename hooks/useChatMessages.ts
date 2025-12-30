@@ -332,7 +332,7 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
     addMessage,
     sendMessageOptimistic,
     sendVoiceMessageOptimistic,
-    sendVideoMessageOptimistic, // ДОБАВЛЕНО
+    sendVideoMessageOptimistic,
     markAsRead,
     updateMessageReactions
   }

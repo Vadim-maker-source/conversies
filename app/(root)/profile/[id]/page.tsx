@@ -114,20 +114,6 @@ export default function ProfilePage() {
     return user.name || user.surname || user.email
   }
 
-  const getUserInitials = (user: User) => {
-    const first = user.name?.[0]?.toUpperCase() || ''
-    const second = user.surname?.[0]?.toUpperCase() || ''
-    return first + second || user.email[0].toUpperCase()
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ru-RU', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }) || "Неизвестно"
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-black/40 w-full flex items-center justify-center">
@@ -195,33 +181,31 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div className="flex flex-col text-white mb-6 py-3 px-5 bg-gray-500/40 rounded-2xl">
-            <span className="text-blue-300 font-semibold">О себе:</span>
-            <p>{user.bio}</p>
-          </div>
-
-          {/* Дополнительная информация */}
-          <div className="space-y-4 mb-6">
-            <div className="bg-gray-700/30 rounded-lg p-4">
-              <h3 className="text-white font-medium mb-3">Информация</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Телефон:</span>
-                  <span className="text-white">{user.phone || 'Не указан'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Статус:</span>
-                  <span className="text-white">
-                    {user.isPremium ? 'Premium' : 'Обычный'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Зарегистрирован:</span>
-                  <span className="text-white">{formatDate(String(user.createdAt))}</span>
-                </div>
+            {user.bio && (
+              <div className="flex flex-col text-white mb-6 py-3 px-5 bg-gray-500/40 rounded-2xl">
+                <span className="text-blue-300 font-semibold">О себе:</span>
+                <p>{user.bio}</p>
               </div>
+            )}
+
+            {user.username && (
+              <div className="flex flex-col text-white mb-6 py-3 px-5 bg-gray-500/40 rounded-2xl">
+                <span className="text-blue-300 font-semibold">Имя пользователя:</span>
+                <p>{user.username}</p>
+              </div>
+            )}
+
+            {user.place && (
+              <div className="flex flex-col text-white mb-6 py-3 px-5 bg-gray-500/40 rounded-2xl">
+                <span className="text-blue-300 font-semibold">Местоположение:</span>
+                <p>{user.place}</p>
+              </div>
+            )}
+
+            <div className="flex flex-col text-white mb-6 py-3 px-5 bg-gray-500/40 rounded-2xl">
+                <span className="text-blue-300 font-semibold">Телефон:</span>
+                <p>{user.phone}</p>
             </div>
-          </div>
 
           {/* Кнопки действий */}
           {!isOwnProfile && currentUser && (

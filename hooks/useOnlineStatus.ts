@@ -1,57 +1,61 @@
-// hooks/useOnlineStatus.ts
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { updateOnlineStatus, getUserStatus, getChatUsersStatus } from '@/app/lib/api/online-status'
 
-interface UserStatus {
+/* ================================================================
+   Типы
+================================================================ */
+
+export interface UserStatus {
   userId: number
   name: string | null
   surname: string | null
   isOnline: boolean
-  lastSeen: Date
+  lastSeen: string | null
   isRecentlyOnline: boolean
 }
 
-// Кэш для статусов пользователей
-const statusCache = new Map<number, {
-  status: { isOnline: boolean; lastSeen: Date; isRecentlyOnline: boolean }
-  timestamp: number
-}>()
 
-const CACHE_DURATION = 60000 // 1 минута кэширования
+/* ================================================================
+   1. Хук состояния текущего пользователя
+================================================================ */
 
 export function useOnlineStatus() {
   const [isOnline, setIsOnline] = useState(true)
-  const isInitialized = useRef(false)
+  const initialized = useRef(false)
 
   const updateStatus = useCallback(async (online: boolean) => {
     try {
-      await updateOnlineStatus(online)
+      await fetch('/api/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isOnline: online })
+      })
+
       setIsOnline(online)
-    } catch (error) {
-      console.error('Error updating status:', error)
+    } catch (err) {
+      console.error('Error updating status:', err)
     }
   }, [])
 
   useEffect(() => {
-    if (isInitialized.current) return
-    isInitialized.current = true
+    if (initialized.current) return
+    initialized.current = true
 
-    // Устанавливаем статус "в сети" только один раз при монтировании
     updateStatus(true)
 
     const handleOnline = () => updateStatus(true)
     const handleOffline = () => updateStatus(false)
-    
+
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        updateStatus(true)
-      }
+      if (!document.hidden) updateStatus(true)
     }
 
     const handleBeforeUnload = () => {
-      navigator.sendBeacon('/api/update-status', JSON.stringify({ isOnline: false }))
+      navigator.sendBeacon(
+        '/api/update-status',
+        JSON.stringify({ isOnline: false })
+      )
     }
 
     window.addEventListener('online', handleOnline)
@@ -67,87 +71,78 @@ export function useOnlineStatus() {
     }
   }, [updateStatus])
 
-  return { isOnline, updateStatus }
+  return { isOnline, setOnlineStatus: updateStatus }
 }
 
-// Улучшенный хук для статуса пользователя с кэшированием
+
+/* ================================================================
+   2. Хук получения статуса любого пользователя
+================================================================ */
+
 export function useUserStatus(userId: number) {
-  const [status, setStatus] = useState<{
-    isOnline: boolean
-    lastSeen: Date
-    isRecentlyOnline: boolean
-  } | null>(null)
-  
-  const lastFetchTime = useRef(0)
+  const [status, setStatus] = useState<UserStatus | null>(null)
   const isFetching = useRef(false)
 
-  const fetchStatus = useCallback(async (force = false) => {
-    const now = Date.now()
-    const cached = statusCache.get(userId)
-    
-    // Используем кэш, если он свежий и не форсируем обновление
-    if (!force && cached && now - cached.timestamp < CACHE_DURATION) {
-      setStatus(cached.status)
-      return
-    }
-
-    // Предотвращаем одновременные запросы
-    if (isFetching.current && !force) return
+  const fetchStatus = useCallback(async () => {
+    if (!userId || isFetching.current) return
     isFetching.current = true
 
     try {
-      const userStatus = await getUserStatus(userId)
-      if (userStatus) {
-        const statusData = {
-          isOnline: userStatus.isOnline,
-          lastSeen: userStatus.lastSeen,
-          isRecentlyOnline: userStatus.isRecentlyOnline
-        }
-        
-        statusCache.set(userId, {
-          status: statusData,
-          timestamp: now
-        })
-        setStatus(statusData)
+      const res = await fetch(`/api/update-status?userId=${userId}`, {
+        method: 'GET',
+      })
+
+      // если HTML → выведем текст ошибки, а не сломаем приложение
+      const text = await res.text()
+
+      try {
+        const json = JSON.parse(text)
+        setStatus(json)
+      } catch {
+        console.error('Received non-JSON from /api/update-status:', text)
       }
-    } catch (error) {
-      console.error('Error fetching user status:', error)
-      // В случае ошибки используем кэшированные данные, если они есть
-      if (cached) {
-        setStatus(cached.status)
-      }
+
+    } catch (err) {
+      console.error('Error fetching user status:', err)
     } finally {
       isFetching.current = false
-      lastFetchTime.current = now
     }
   }, [userId])
 
   useEffect(() => {
     fetchStatus()
-    
-    // Увеличиваем интервал обновления до 2 минут
-    const interval = setInterval(() => fetchStatus(), 120000)
-    
-    return () => clearInterval(interval)
+    const id = setInterval(fetchStatus, 120_000)
+    return () => clearInterval(id)
   }, [fetchStatus])
 
   return status
 }
 
-// Хук для статусов участников чата
+
+/* ================================================================
+   3. Статусы участников чата
+================================================================ */
+
 export function useChatUsersStatus(chatId: number) {
   const [usersStatus, setUsersStatus] = useState<UserStatus[]>([])
   const isFetching = useRef(false)
 
   const fetchStatuses = useCallback(async () => {
-    if (isFetching.current) return
+    if (!chatId || isFetching.current) return
     isFetching.current = true
 
     try {
-      const statuses = await getChatUsersStatus(chatId)
-      setUsersStatus(statuses)
-    } catch (error) {
-      console.error('Error fetching chat users status:', error)
+      const res = await fetch(`/api/chat-users-status?chatId=${chatId}`)
+      const text = await res.text()
+
+      try {
+        const json = JSON.parse(text)
+        setUsersStatus(json)
+      } catch {
+        console.error('Non-JSON from chat-users-status:', text)
+      }
+    } catch (err) {
+      console.error('Error fetching chat users status:', err)
     } finally {
       isFetching.current = false
     }
@@ -155,11 +150,9 @@ export function useChatUsersStatus(chatId: number) {
 
   useEffect(() => {
     fetchStatuses()
-    
-    // Увеличиваем интервал для групповых чатов
-    const interval = setInterval(fetchStatuses, 180000) // 3 минуты
-    
-    return () => clearInterval(interval)
+
+    const id = setInterval(fetchStatuses, 180_000)
+    return () => clearInterval(id)
   }, [fetchStatuses])
 
   return usersStatus

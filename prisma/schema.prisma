@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   // output   = "../app/generated/prisma"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
@@ -10,48 +10,62 @@ datasource db {
 }
 
 model User {
-  id               Int      @id @default(autoincrement())
+  id               Int     @id @default(autoincrement())
   name             String?
   surname          String?
   bio              String?
-  email            String   @unique
+  email            String  @unique
   phone            String?
   password         String?
   avatar           String?
-  isPremium        Boolean  @default(false)
-  notificationMode String?  @default("normal")
-  twoFactorEnabled Boolean  @default(false)
-  coins            Int      @default(0)
+  isPremium        Boolean @default(false)
+  notificationMode String? @default("normal")
+  twoFactorEnabled Boolean @default(false)
+  coins            Int     @default(0)
+  username         String? @unique
+  place            String?
 
-  lastSeen         DateTime @default(now())
-  isOnline         Boolean  @default(false)
+  lastSeen DateTime @default(now())
+  isOnline Boolean  @default(false)
 
-  accounts         Account[]
-  
+  accounts Account[]
+
   // Поля для 2FA
-  twoFactorCode     String?
-  twoFactorExpires  DateTime?
+  twoFactorCode    String?
+  twoFactorExpires DateTime?
 
   sentGifts     Gift[] @relation("SentGifts")
   receivedGifts Gift[] @relation("ReceivedGifts")
-  
+
   chatMembers ChatMember[]
   messages    Message[]
 
   contactsOwned Contact[] @relation("ContactsOwned")
   contactsAdded Contact[] @relation("ContactsAdded")
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  initiatedCalls     Call[]            @relation("Initiator")
+  callParticipations CallParticipant[]
+
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  Reaction            Reaction[]
+  MessageRead         MessageRead[]
+  deviceLinkingTokens DeviceLinkingToken[]
+  deviceSessions      DeviceSession[]
+  eventProgresses     EventProgress[]
+  sessions            Session[]
+  botVotes            BotVote[]
+
+  forumFollowers ForumUserFollow[] @relation("ForumFollowing")
+  forumFollowing ForumUserFollow[] @relation("ForumFollower")
+
+  forumPosts             ForumPost[]
+  forumComments          ForumComment[]
+  forumReactions         ForumReaction[]
+  forumPostSubscriptions ForumPostSubscription[]
+  forumPostViews         ForumPostView[]
 
   @@map("users")
-  Reaction Reaction[]
-  MessageRead MessageRead[]
-  deviceLinkingTokens DeviceLinkingToken[]
-  deviceSessions DeviceSession[]
-  eventProgresses EventProgress[]
-  sessions Session[]
-  botVotes BotVote[]
 }
 
 model Account {
@@ -60,12 +74,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?  @db.Text
-  access_token      String?  @db.Text
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?  @db.Text
+  id_token          String? @db.Text
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -96,97 +110,99 @@ model VerificationToken {
 model DeviceLinkingToken {
   id        Int      @id @default(autoincrement())
   token     String   @unique
-  userId    Int?     // Сделаем опциональным
+  userId    Int? // Сделаем опциональным
   user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   used      Boolean  @default(false)
-  
+
   createdAt DateTime @default(now())
-  
+
   @@map("device_linking_tokens")
 }
 
 model DeviceSession {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deviceId  String   @unique // Уникальный идентификатор устройства
+  id         Int     @id @default(autoincrement())
+  userId     Int
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId   String  @unique // Уникальный идентификатор устройства
   deviceInfo String? // Информация об устройстве
-  ipAddress String?
-  userAgent String?
-  
-  createdAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt  DateTime @default(now())
   lastActive DateTime @default(now())
-  
+
   @@map("device_sessions")
 }
 
 model Chat {
-  id               Int      @id @default(autoincrement())
-  name             String?
-  type             ChatType @default(PRIVATE)
-  isChannel        Boolean  @default(false)
-  avatar           String?
-  isPrivate        Boolean? @default(false)
-  pinnedMessageId  Int?     @unique
+  id              Int          @id @default(autoincrement())
+  name            String?
+  type            ChatType     @default(PRIVATE)
+  isChannel       Boolean      @default(false)
+  avatar          String?
+  isPrivate       Boolean?     @default(false)
+  pinnedMessageId Int?         @unique
   // Участники чата
   members         ChatMember[]
   messages        Message[]
-  pinnedMessage   Message?  @relation("PinnedMessage", fields: [pinnedMessageId], references: [id]) // Связь для закрепленного сообщения
-  
+  pinnedMessage   Message?     @relation("PinnedMessage", fields: [pinnedMessageId], references: [id]) // Связь для закрепленного сообщения
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  calls Call[]
 
   botGames BotGame[]
 }
 
 model ChatMember {
-  id     Int   @id @default(autoincrement())
+  id     Int      @id @default(autoincrement())
   userId Int
   chatId Int
   role   ChatRole @default(MEMBER)
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, chatId])
   @@map("chat_members")
 }
 
 model Message {
-  id               Int      @id @default(autoincrement())
-  content          String
-  userId           Int
-  chatId           Int
-  messageId        Int?
+  id                Int    @id @default(autoincrement())
+  content           String
+  userId            Int
+  chatId            Int
+  messageId         Int?
   originalMessageId Int?
-  
+
   imageUrl String?
   fileUrl  String?
-  
+
   isEdited Boolean @default(false)
   isShared Boolean @default(false)
-  
-  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chat            Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  replyTo         Message? @relation("MessageReplies", fields: [messageId], references: [id])
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat            Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  replyTo         Message?  @relation("MessageReplies", fields: [messageId], references: [id])
   replies         Message[] @relation("MessageReplies")
-  originalMessage Message? @relation("MessageShares", fields: [originalMessageId], references: [id])
+  originalMessage Message?  @relation("MessageShares", fields: [originalMessageId], references: [id])
   sharedMessages  Message[] @relation("MessageShares")
   pinnedIn        Chat?     @relation("PinnedMessage")
-  
-  botId    Int?
-  pollId   Int?
-  
-  bot      Bot?  @relation(fields: [botId], references: [id])
 
-  readBy          MessageRead[]
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  botId  Int?
+  pollId Int?
+
+  bot Bot? @relation(fields: [botId], references: [id])
+
+  readBy MessageRead[]
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  Reaction  Reaction[]
+
   @@map("messages")
-  Reaction Reaction[]
 }
 
 model MessageRead {
@@ -214,16 +230,16 @@ enum ChatRole {
 }
 
 model Contact {
-  id          Int      @id @default(autoincrement())
-  ownerId     Int      // пользователь, который добавил в контакты
-  contactId   Int      // пользователь, который добавлен в контакты
-  name        String?  // кастомное имя для контакта
-  notes       String?  // заметки о контакте
-  
+  id        Int     @id @default(autoincrement())
+  ownerId   Int // пользователь, который добавил в контакты
+  contactId Int // пользователь, который добавлен в контакты
+  name      String? // кастомное имя для контакта
+  notes     String? // заметки о контакте
+
   // Связи
-  owner   User   @relation("ContactsOwned", fields: [ownerId], references: [id], onDelete: Cascade)
-  contact User   @relation("ContactsAdded", fields: [contactId], references: [id], onDelete: Cascade)
-  
+  owner   User @relation("ContactsOwned", fields: [ownerId], references: [id], onDelete: Cascade)
+  contact User @relation("ContactsAdded", fields: [contactId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -232,62 +248,62 @@ model Contact {
 }
 
 model Reaction {
-  id        Int      @id @default(autoincrement())
+  id        Int    @id @default(autoincrement())
   messageId Int
   userId    Int
-  emoji     String   // Эмодзи реакция
-  
+  emoji     String // Эмодзи реакция
+
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
-  
+
   @@unique([messageId, userId, emoji])
   @@map("reactions")
 }
 
 model Gift {
-  id          Int      @id @default(autoincrement())
-  giftId      Int      // ID подарка из assets (1-30)
-  price       Int      // Стоимость подарка в монетах
-  message     String?  // Сообщение с подарком
-  
+  id      Int     @id @default(autoincrement())
+  giftId  Int // ID подарка из assets (1-30)
+  price   Int // Стоимость подарка в монетах
+  message String? // Сообщение с подарком
+
   // Кто подарил и кому
-  senderId    Int
-  receiverId  Int
-  
+  senderId   Int
+  receiverId Int
+
   // Статус подарка у получателя
-  status      GiftStatus @default(ACTIVE) // ACTIVE, REDEEMED, REGIFTED
-  
+  status GiftStatus @default(ACTIVE) // ACTIVE, REDEEMED, REGIFTED
+
   // Для передаренных подарков
-  originalGiftId Int? // ID оригинального подарка, если это передаренный
+  originalGiftId   Int? // ID оригинального подарка, если это передаренный
   regiftReceiverId Int? // Кому переподарили
-  
-  sender      User   @relation("SentGifts", fields: [senderId], references: [id])
-  receiver    User   @relation("ReceivedGifts", fields: [receiverId], references: [id])
+
+  sender       User  @relation("SentGifts", fields: [senderId], references: [id])
+  receiver     User  @relation("ReceivedGifts", fields: [receiverId], references: [id])
   originalGift Gift? @relation("OriginalGift", fields: [originalGiftId], references: [id])
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  Gift      Gift[]   @relation("OriginalGift")
 
   @@map("gifts")
-  Gift Gift[] @relation("OriginalGift")
 }
 
 enum GiftStatus {
-  ACTIVE    // Активный подарок
-  REDEEMED  // Обналичен
-  REGIFTED  // Переподарен
+  ACTIVE // Активный подарок
+  REDEEMED // Обналичен
+  REGIFTED // Переподарен
 }
 
 model EventProgress {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  eventType String   // "winter_2024"
-  points    Int      @default(0)
+  id                Int     @id @default(autoincrement())
+  userId            Int
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType         String // "winter_2024"
+  points            Int     @default(0)
   claimedMilestones String? // JSON массив с полученными наградами
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -296,60 +312,60 @@ model EventProgress {
 }
 
 model Bot {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
   description String?
   avatar      String?
-  isActive    Boolean  @default(true)
-  webhookUrl  String?  // Для внешних ботов
-  token       String   @unique @default(cuid()) // Токен для API
-  
+  isActive    Boolean @default(true)
+  webhookUrl  String? // Для внешних ботов
+  token       String  @unique @default(cuid()) // Токен для API
+
   // Сообщения от бота
-  messages    Message[]
-  
+  messages Message[]
+
   // Игры и опросы, созданные ботом
-  games       BotGame[]
-  
+  games BotGame[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@map("bots")
 }
 
 model BotGame {
-  id          Int      @id @default(autoincrement())
-  botId       Int
-  chatId      Int
-  type        GameType // QUESTION, POLL, QUIZ
-  title       String
-  question    String
-  options     String[] // JSON массив вариантов ответов
-  correctAnswer Int?   // Индекс правильного ответа для квизов
-  isActive    Boolean  @default(true)
-  
-  bot         Bot   @relation(fields: [botId], references: [id], onDelete: Cascade)
-  chat        Chat  @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  
+  id            Int      @id @default(autoincrement())
+  botId         Int
+  chatId        Int
+  type          GameType // QUESTION, POLL, QUIZ
+  title         String
+  question      String
+  options       String[] // JSON массив вариантов ответов
+  correctAnswer Int? // Индекс правильного ответа для квизов
+  isActive      Boolean  @default(true)
+
+  bot  Bot  @relation(fields: [botId], references: [id], onDelete: Cascade)
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
   // Голоса пользователей
-  votes       BotVote[]
-  
-  createdAt DateTime @default(now())
+  votes BotVote[]
+
+  createdAt DateTime  @default(now())
   expiresAt DateTime? // Когда игра завершается
-  
+
   @@unique([botId, chatId, title])
   @@map("bot_games")
 }
 
 model BotVote {
-  id        Int      @id @default(autoincrement())
-  gameId    Int
-  userId    Int
-  optionIndex Int    // Выбранный вариант (0, 1, 2...)
-  votedAt   DateTime @default(now())
-  
+  id          Int      @id @default(autoincrement())
+  gameId      Int
+  userId      Int
+  optionIndex Int // Выбранный вариант (0, 1, 2...)
+  votedAt     DateTime @default(now())
+
   game BotGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
   user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@unique([gameId, userId])
   @@map("bot_votes")
 }
@@ -358,4 +374,198 @@ enum GameType {
   QUESTION
   POLL
   QUIZ
+}
+
+model Call {
+  id          Int        @id @default(autoincrement())
+  chatId      Int
+  initiatorId Int
+  type        CallType   @default(audio)
+  status      CallStatus @default(ringing)
+
+  startTime DateTime  @default(now())
+  endTime   DateTime?
+  duration  Int? // в секундах
+
+  chat         Chat              @relation(fields: [chatId], references: [id])
+  initiator    User              @relation("Initiator", fields: [initiatorId], references: [id])
+  participants CallParticipant[]
+
+  @@map("calls")
+}
+
+model CallParticipant {
+  id       Int       @id @default(autoincrement())
+  callId   Int
+  userId   Int
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, userId])
+  @@map("call_participants")
+}
+
+enum CallType {
+  audio
+  video
+}
+
+enum CallStatus {
+  ringing
+  active
+  ended
+  missed
+  declined
+}
+
+// Форум
+
+model ForumCategory {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String?
+  slug        String  @unique
+  isPrivate   Boolean @default(false)
+
+  posts ForumPost[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("forum_categories")
+}
+
+model ForumPost {
+  id         Int    @id @default(autoincrement())
+  title      String
+  content    String
+  authorId   Int
+  categoryId Int
+  location   String? // новое поле
+  images     String[] // массив URL изображений
+
+  isPinned   Boolean @default(false)
+  isLocked   Boolean @default(false)
+  viewsCount Int     @default(0)
+
+  author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  category ForumCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  comments  ForumComment[]
+  reactions ForumReaction[]
+  tags      ForumPostTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions ForumPostSubscription[]
+  views         ForumPostView[]
+
+  @@map("forum_posts")
+}
+
+model ForumComment {
+  id       Int  @id @default(autoincrement())
+  postId   Int
+  authorId Int
+  parentId Int?
+
+  content  String
+  isEdited Boolean @default(false)
+
+  post   ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  parent  ForumComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies ForumComment[] @relation("CommentReplies")
+
+  reactions ForumReaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("forum_comments")
+}
+
+model ForumReaction {
+  id        Int    @id @default(autoincrement())
+  userId    Int
+  postId    Int?
+  commentId Int?
+  emoji     String
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post    ForumPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment ForumComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId, emoji])
+  @@unique([userId, commentId, emoji])
+  @@map("forum_reactions")
+}
+
+model ForumPostSubscription {
+  id     Int @id @default(autoincrement())
+  userId Int
+  postId Int
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@map("forum_post_subscriptions")
+}
+
+model ForumUserFollow {
+  id          Int @id @default(autoincrement())
+  followerId  Int
+  followingId Int
+
+  follower  User @relation("ForumFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("ForumFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@map("forum_user_follows")
+}
+
+model ForumTag {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+  slug String @unique
+
+  posts ForumPostTag[]
+
+  @@map("forum_tags")
+}
+
+model ForumPostTag {
+  postId Int
+  tagId  Int
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  ForumTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@map("forum_post_tags")
+}
+
+model ForumPostView {
+  id     Int  @id @default(autoincrement())
+  postId Int
+  userId Int?
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  viewedAt DateTime @default(now())
+
+  @@map("forum_post_views")
 }

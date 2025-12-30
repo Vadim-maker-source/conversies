@@ -5,7 +5,7 @@ import { User, ChatWithDetails, Message } from '@/app/lib/types'
 import { useChatMessages } from '@/hooks/useChatMessages'
 import { useState, useRef, useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faFaceSmile, faPaperclip, faPaperPlane, faTrash, faDownload, faReply, faShare, faEdit, faThumbTack, faMicrophone, faStop, faPause, faPlay } from '@fortawesome/free-solid-svg-icons'
+import { faFaceSmile, faPaperclip, faPaperPlane, faTrash, faDownload, faReply, faShare, faEdit, faThumbTack, faMicrophone, faStop, faPause, faPlay, faStickyNote, faVideo, faPhone } from '@fortawesome/free-solid-svg-icons'
 import Link from 'next/link'
 import {
   ContextMenu,
@@ -24,6 +24,12 @@ import { cn } from '@/lib/utils'
 import { Search } from './animate-ui/icons/search'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { useChatUsersStatus, useUserStatus } from '@/hooks/useOnlineStatus'
+import EmojiPicker, { Theme, EmojiStyle } from 'emoji-picker-react';
+import { initiateCall, getActiveCallInChat, endCall, CallData, declineCall, acceptCall } from '@/app/lib/api/calls'
+import useCallWebRTC from '@/hooks/useWebRTC'
+import CallNotification from './CallNotification'
+import CallInterface from './CallInterface'
+import { getPusherClient, pusherClient } from '@/app/lib/pusher-client'
 
 interface PendingFile {
   id: string
@@ -37,7 +43,6 @@ interface ChatClientProps {
   chatInfo: ChatWithDetails
 }
 
-// Расширяем тип Message для поддержки новых полей
 export type MessageWithFiles = Message & {
   fileUrls?: string[]
   originalMessage?: Message
@@ -50,8 +55,8 @@ export type MessageWithFiles = Message & {
   totalMembers?: number
   readStatus?: 'sent' | 'read' | 'unread'
   isReadByCurrentUser?: boolean
-  reactions?: Record<string, any[]> // Добавляем реакции
-  imageUrl?: string | null // Добавляем imageUrl
+  reactions?: Record<string, any[]>
+  imageUrl?: string | null
   isVoiceMessage?: boolean
 }
 
@@ -64,7 +69,6 @@ interface VideoRecording {
   stream: MediaStream | null
 }
 
-// Обновить VoiceRecording интерфейс
 interface VoiceRecording {
   isRecording: boolean
   audioBlob: Blob | null
@@ -79,8 +83,6 @@ interface MicrophoneAnimation {
   scale: number
   opacity: number
 }
-
-// Компонент для записи видеосообщений
 function VideoRecorder({ 
   onRecordingComplete,
   onRecordingCancel
@@ -104,7 +106,6 @@ function VideoRecorder({
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Получаем список доступных камер
   const getCameras = async () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices()
@@ -141,7 +142,7 @@ function VideoRecorder({
           deviceId: currentCamera.deviceId ? { exact: currentCamera.deviceId } : undefined,
           width: { ideal: 400 },
           height: { ideal: 400 },
-          aspectRatio: 1 // Для квадратного видео
+          aspectRatio: 1
         }, 
         audio: {
           echoCancellation: true,
@@ -233,7 +234,7 @@ function VideoRecorder({
           deviceId: currentCamera.deviceId ? { exact: currentCamera.deviceId } : undefined,
           width: { ideal: 400 },
           height: { ideal: 400 },
-          aspectRatio: 1 // Квадратное видео для кружочка
+          aspectRatio: 1
         }, 
         audio: {
           echoCancellation: true,
@@ -396,7 +397,7 @@ function VideoRecorder({
     })
   }
 
-  // Компонент для кругового прогресс-бара
+  // Компонент для кругового прогресс бара
   const CircularProgress = ({ progress, size = 80, strokeWidth = 4 }: { progress: number; size?: number; strokeWidth?: number }) => {
     const radius = (size - strokeWidth) / 2
     const circumference = radius * 2 * Math.PI
@@ -701,7 +702,6 @@ function VoiceMessage({
 }
 
 // Компонент для записи голосового сообщения
-// Компонент для записи голосового сообщения (компактная версия)
 function VoiceRecorder({ 
   onRecordingComplete,
   onCancel
@@ -1421,7 +1421,17 @@ function ForwardedMessageHeader({ message }: { message: MessageWithFiles }) {
     const getUserInitials = (user: User) => {
         const first = user.name?.[0]?.toUpperCase() || ''
         const second = user.surname?.[0]?.toUpperCase() || ''
-        return first + second || user.email[0].toUpperCase()
+
+        if (first || second) {
+          return first + second
+        }
+        
+        // Безопасный доступ к email
+        if (user.email && user.email.length > 0) {
+          return user.email[0].toUpperCase()
+        }
+        
+        return 'U'
     }
 
     const originalUser = message.originalMessage.user || undefined
@@ -2224,73 +2234,194 @@ function MessageItem({
 }
 
 // Компонент для выбора стикеров
-function StickerPicker({ onStickerSelect, onClose }: { 
-  onStickerSelect: (stickerPath: string) => void 
-  onClose: () => void
+function StickerPicker({ 
+  onStickerSelect, 
+  onClose,
+  onEmojiSelect 
+}: { 
+  onStickerSelect: (stickerPath: string) => void;
+  onClose: () => void;
+  onEmojiSelect?: (emoji: string) => void;
 }) {
+  const [activeTab, setActiveTab] = useState<'stickers' | 'emojis'>('stickers');
+  const [cuser, setcuser] = useState<User | null>(null);
+  
   const stickers = Array.from({ length: 20 }, (_, i) => `/assets/stickers/${i + 1}.png`);
-  const [cuser, setcuser] = useState<User | null>(null)
+  const exclusive = cuser?.isPremium 
+    ? Array.from({ length: 20 }, (_, i) => `/assets/stickers/exclusive-${i + 1}.png`)
+    : null;
 
   useEffect(() => {
     const getUser = async () => {
       const currentUser = await getCurrentUser();
-      setcuser(currentUser)
-    }
+      setcuser(currentUser);
+    };
     getUser();
   }, []);
 
-  const exclusive = cuser?.isPremium ? Array.from({ length: 20 }, (_, i) => `/assets/stickers/${i + 1}.png`) : null
+  const handleEmojiClick = (emojiObject: any) => {
+    if (onEmojiSelect) {
+      onEmojiSelect(emojiObject.emoji);
+    }
+  };
 
   return (
-    <div className="absolute bottom-20 left-4 bg-white border border-black/70 rounded-lg shadow-xl p-4 z-10 max-h-96 overflow-y-scroll">
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="text-sm font-medium text-white">Выберите стикер</h3>
+    <div className="absolute bottom-20 left-4 bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl shadow-2xl p-3 z-50 w-80 h-96 flex flex-col">
+      {/* Заголовок и кнопка закрытия */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center space-x-1">
+          {/* Вкладки */}
+          <button
+            onClick={() => setActiveTab('stickers')}
+            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
+              activeTab === 'stickers'
+                ? 'bg-purple-500 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            <FontAwesomeIcon icon={faStickyNote} className="w-4 h-4" />
+            <span className="text-sm font-medium">Стикеры</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('emojis')}
+            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
+              activeTab === 'emojis'
+                ? 'bg-purple-500 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            <FontAwesomeIcon icon={faFaceSmile} className="w-4 h-4" />
+            <span className="text-sm font-medium">Эмодзи</span>
+          </button>
+        </div>
+        
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 text-lg"
+          className="text-gray-400 hover:text-white text-lg transition-colors p-1"
+          title="Закрыть"
         >
           ✕
         </button>
       </div>
-      <div className="grid grid-cols-4 gap-2 max-w-xs">
-        {stickers.map((stickerPath, index) => (
-          <button
-            key={index}
-            onClick={() => onStickerSelect(stickerPath)}
-            className="w-16 h-16 hover:bg-gray-600/40 rounded-lg transition-colors p-1"
-          >
-            <img 
-              src={stickerPath} 
-              alt={`Стикер ${index + 1}`}
-              className="w-full h-full object-contain"
-            />
-          </button>
-        ))}
-      </div>
-      <span className="text-gray-100 mt-2">Эксклюзивные стикеры</span>
-        {exclusive ? (
-          <div className="grid grid-cols-4 gap-2 max-w-xs mt-2">
-            {exclusive.map((stickerPath, index) => (
-              <button
-                key={index}
-                onClick={() => onStickerSelect(stickerPath)}
-                className="w-16 h-16 hover:bg-gray-600/40 rounded-lg transition-colors p-1"
-              >
-                <img 
-                  src={stickerPath} 
-                  alt={`Стикер ${index + 1}`}
-                  className="w-full h-full object-contain"
-                />
-              </button>
-            ))}
+
+      {/* Контент вкладок */}
+      <div className="flex-1 overflow-hidden">
+        {activeTab === 'stickers' ? (
+          <div className="h-full overflow-y-auto">
+            {/* Обычные стикеры */}
+            <div className="mb-4">
+              <h4 className="text-xs text-gray-400 uppercase font-medium mb-2 px-1">Обычные стикеры</h4>
+              <div className="grid grid-cols-4 gap-1">
+                {stickers.map((stickerPath, index) => (
+                  <button
+                    key={index}
+                    onClick={() => onStickerSelect(stickerPath)}
+                    className="w-16 h-16 hover:bg-purple-500/20 rounded-lg transition-colors p-1 group"
+                    title={`Стикер ${index + 1}`}
+                  >
+                    <div className="relative w-full h-full">
+                      <img 
+                        src={stickerPath} 
+                        alt={`Стикер ${index + 1}`}
+                        className="w-full h-full object-contain group-hover:scale-110 transition-transform"
+                      />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Эксклюзивные стикеры */}
+            {exclusive ? (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <h4 className="text-xs text-yellow-400 uppercase font-medium flex items-center gap-1">
+                    <span className="text-yellow-300">⭐</span>
+                    Эксклюзивные стикеры
+                  </h4>
+                  <span className="text-xs text-yellow-300 bg-yellow-400/20 px-2 py-0.5 rounded-full">
+                    PREMIUM
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-1">
+                  {exclusive.map((stickerPath, index) => (
+                    <button
+                      key={index}
+                      onClick={() => onStickerSelect(stickerPath)}
+                      className="w-16 h-16 hover:bg-yellow-500/20 rounded-lg transition-colors p-1 group"
+                      title={`Эксклюзивный стикер ${index + 1}`}
+                    >
+                      <div className="relative w-full h-full">
+                        <img 
+                          src={stickerPath} 
+                          alt={`Эксклюзивный стикер ${index + 1}`}
+                          className="w-full h-full object-contain group-hover:scale-110 transition-transform"
+                        />
+                        <div className="absolute -top-1 -right-1 bg-yellow-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                          P
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-lg p-4 mb-4">
+                <div className="flex items-start space-x-3">
+                  <div className="text-yellow-400 text-xl">⭐</div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-yellow-300 mb-1">
+                      Эксклюзивные стикеры
+                    </h4>
+                    <p className="text-xs text-yellow-200/80 mb-2">
+                      Получите доступ к эксклюзивным стикерам с Premium статусом
+                    </p>
+                    <Link 
+                      href="/settings"
+                      className="inline-block px-3 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs rounded-lg hover:opacity-90 transition-opacity"
+                      onClick={onClose}
+                    >
+                      Приобрести Premium
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
-          <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl p-4">
-            <p>Это платная функция. <Link href="/settings">Приобрести Premium статус</Link></p>
+          <div className="h-full">
+            <EmojiPicker
+              onEmojiClick={handleEmojiClick}
+              theme={Theme.DARK}
+              emojiStyle={EmojiStyle.NATIVE}
+              searchPlaceholder="Поиск эмодзи..."
+              height={300}
+              width="100%"
+              previewConfig={{
+                showPreview: false
+              }}
+              skinTonesDisabled
+              lazyLoadEmojis={true}
+              className="[&_.epr-emoji-category-label]:bg-gray-800 [&_.epr-emoji-category-label]:text-gray-300"
+            />
           </div>
         )}
+      </div>
+
+      {/* Индикатор активной вкладки */}
+      <div className="flex justify-center mt-2">
+        <div className="flex space-x-1">
+          <div className={`w-1.5 h-1.5 rounded-full ${
+            activeTab === 'stickers' ? 'bg-purple-500' : 'bg-gray-600'
+          }`} />
+          <div className={`w-1.5 h-1.5 rounded-full ${
+            activeTab === 'emojis' ? 'bg-purple-500' : 'bg-gray-600'
+          }`} />
+        </div>
+      </div>
     </div>
-  )
+  );
 }
 
 // Модальное окно для пересылки сообщений
@@ -2536,6 +2667,410 @@ const [microphoneAnimation, setMicrophoneAnimation] = useState<MicrophoneAnimati
   scale: 1,
   opacity: 1
 })
+
+const [activeCall, setActiveCall] = useState<CallData | null>(null)
+const [incomingCall, setIncomingCall] = useState<CallData | null>(null)
+const [isCallActive, setIsCallActive] = useState(false)
+const [callSubscription, setCallSubscription] = useState<any>(null)
+
+const {
+  localStream,
+  remoteStreams,
+  isAudioEnabled,
+  isVideoEnabled,
+  isScreenSharing,
+  participants: webRTCParticipants, // Переименуем, чтобы избежать конфликта
+  toggleAudio,
+  toggleVideo,
+  toggleScreenShare,
+  initializeLocalStream,
+  cleanup: cleanupWebRTC,
+  peerConnections,
+  retryConnection
+} = useCallWebRTC({
+  callId: String(activeCall?.id) || '',
+  currentUser,
+  callType: activeCall?.type || 'audio',
+  initialParticipants: activeCall?.participants?.map(p => ({
+    userId: p.userId,
+    user: {
+      id: p.user.id,
+      name: p.user.name,
+      surname: p.user.surname,
+      avatar: p.user.avatar,
+      email: p.user.email || '',
+      phone: p.user.phone || ''
+    }
+  })) || [],
+  onRemoteStream: (userId: number, stream: MediaStream) => {
+    console.log('Remote stream received:', userId)
+    // Show visual feedback for remote stream
+  },
+  onRemoteDisconnect: (userId: number) => {
+    console.log('Remote user disconnected:', userId)
+    // Handle remote user disconnect
+  }
+})
+
+// Функция для начала звонка с опциональными медиа разрешениями
+const handleStartCall = async (type: 'audio' | 'video', withMedia: boolean = false) => {
+  try {
+    console.log('Starting call of type:', type, 'with media:', withMedia)
+    
+    // Если пользователь хочет использовать медиа, проверяем доступность
+    if (withMedia) {
+      if (type === 'video') {
+        try {
+          await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        } catch (error) {
+          console.warn('Video/audio access denied, continuing without media')
+          // Не прерываем процесс, просто продолжаем без медиа
+        }
+      } else {
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true })
+        } catch (error) {
+          console.warn('Audio access denied, continuing without media')
+          // Не прерываем процесс, просто продолжаем без медиа
+        }
+      }
+    }
+    
+    const callData = await initiateCall(chatInfo.id, type)
+    setActiveCall(callData)
+    setIsCallActive(true)
+    
+    console.log('Call initiated successfully:', callData)
+  } catch (error) {
+    console.error('Error starting call:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка начала звонка'
+    alert(errorMessage)
+  }
+}
+
+// Функция для завершения звонка
+const handleEndCall = async () => {
+  if (!activeCall) return
+  
+  try {
+    await endCall(activeCall.id)
+    cleanupWebRTC()
+    setActiveCall(null)
+    setIsCallActive(false)
+  } catch (error) {
+    console.error('Error ending call:', error)
+  }
+}
+
+// Проверка активных звонков
+useEffect(() => {
+  if (!currentUser.id) return;
+
+  const pusher = getPusherClient();
+  if (!pusher) {
+    console.error('Pusher client not initialized');
+    return;
+  }
+
+  const userChannel = pusher.subscribe(`user-${currentUser.id}`);
+  
+  // Обработчик входящих звонков
+  const handleIncomingCall = (data: any) => {
+    console.log('Incoming call received - full data:', data);
+    console.log('Call ID:', data.callId, 'Type:', typeof data.callId);
+    console.log('Current user ID:', currentUser.id);
+    
+    // Критически важные проверки:
+    const callId = Number(data.callId);
+    
+    if (!callId || isNaN(callId)) {
+      console.error('Invalid call ID:', data.callId);
+      return;
+    }
+    
+    // 1. Проверяем, что это для нашего чата
+    if (Number(data.chatId) !== chatInfo.id) {
+      console.log('Ignoring - wrong chat ID:', data.chatId, 'expected:', chatInfo.id);
+      return;
+    }
+    
+    // 2. Проверяем, что звонок не от нас самих
+    if (Number(data.initiatorId) === currentUser.id) {
+      console.log('Ignoring - call from self');
+      return;
+    }
+    
+    // 3. Игнорируем завершенные звонки
+    if (data.status === 'ended' || data.status === 'declined' || data.status === 'missed') {
+      console.log('Ignoring - call already ended/declined');
+      return;
+    }
+    
+    // 4. Проверяем, нет ли уже активного звонка
+    if (activeCall?.id === callId) {
+      console.log('Ignoring - already have active call with this id');
+      return;
+    }
+    
+    // 5. Проверяем, нет ли уже входящего звонка
+    if (incomingCall?.id === callId) {
+      console.log('Ignoring - duplicate incoming call');
+      return;
+    }
+    
+    // 6. Если уже обрабатываем звонок, пропускаем
+    if (isProcessingCall) {
+      console.log('Ignoring - call processing in progress');
+      return;
+    }
+    
+    console.log('Setting incoming call with ID:', callId);
+    
+    // Преобразуем данные для корректного формата
+    const incomingCallData: CallData = {
+      id: callId,
+      chatId: Number(data.chatId),
+      initiatorId: Number(data.initiatorId),
+      type: data.type,
+      status: data.status || 'ringing',
+      startTime: new Date(data.startTime || Date.now()),
+      endTime: data.endTime ? new Date(data.endTime) : undefined,
+      duration: data.duration,
+      initiator: data.initiator,
+      participants: data.participants || []
+    };
+    
+    setIncomingCall(incomingCallData);
+  };
+  
+  // Обработчик завершенных звонков
+  const handleCallEnded = (data: any) => {
+    console.log('Call ended event received:', data);
+    
+    if (activeCall?.id === data.callId) {
+      setActiveCall(null);
+      setIsCallActive(false);
+      cleanupWebRTC();
+    }
+    
+    if (incomingCall?.id === data.callId) {
+      setIncomingCall(null);
+    }
+  };
+  
+  // Обработчик принятых звонков
+  const handleCallAccepted = (data: any) => {
+    console.log('Call accepted event received:', data);
+    
+    // Если принят наш входящий звонок
+    if (incomingCall?.id === data.callId) {
+      console.log('Our incoming call was accepted by someone else');
+      setIncomingCall(null);
+    }
+    
+    // Если мы приняли звонок
+    if (activeCall?.id === data.callId && data.userId === currentUser.id) {
+      console.log('We accepted the call');
+    }
+  };
+  
+  userChannel.bind('call-incoming', handleIncomingCall);
+  userChannel.bind('call-ended', handleCallEnded);
+  userChannel.bind('call-accepted', handleCallAccepted);
+  
+  // Проверяем активный звонк при загрузке
+  const checkActiveCall = async () => {
+    try {
+      const active = await getActiveCallInChat(chatInfo.id);
+      if (active) {
+        // Проверяем, является ли пользователь участником
+        const isParticipant = active.participants.some(
+          p => p.userId === currentUser.id
+        );
+        
+        if (isParticipant) {
+          setActiveCall(active);
+          setIsCallActive(true);
+        } else if (active.status === 'ringing') {
+          // Показываем уведомление только если звонок звонит и мы не участник
+          setIncomingCall(active);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking active call:', error);
+    }
+  };
+  
+  checkActiveCall();
+  
+  return () => {
+    userChannel.unbind('call-incoming', handleIncomingCall);
+    userChannel.unbind('call-ended', handleCallEnded);
+    userChannel.unbind('call-accepted', handleCallAccepted);
+    userChannel.unsubscribe();
+  };
+}, [chatInfo.id, currentUser.id, activeCall?.id, incomingCall?.id, cleanupWebRTC]);
+
+// Добавьте кнопки звонков в интерфейс чата
+const renderCallButtons = () => {
+  if (isCallActive || !canSendMessages()) return null
+  
+  return (
+    <div className="flex items-center space-x-2">
+      <button
+        onClick={() => handleStartCall('audio')}
+        className="flex items-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+        title="Начать аудиозвонок"
+      >
+        <FontAwesomeIcon icon={faPhone} className="w-4 h-4" />
+        <span>Аудио</span>
+      </button>
+      <button
+        onClick={() => handleStartCall('video')}
+        className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors"
+        title="Начать видеозвонок"
+      >
+        <FontAwesomeIcon icon={faVideo} className="w-4 h-4" />
+        <span>Видео</span>
+      </button>
+    </div>
+  )
+}
+
+const [isProcessingCall, setIsProcessingCall] = useState(false);
+
+const handleAcceptCall = async (withMedia: boolean = false) => {
+  console.log('🔄 handleAcceptCall called');
+  console.log('📦 Incoming call object:', incomingCall);
+  console.log('📦 Incoming call ID:', incomingCall?.id);
+  console.log('🔄 Is processing?', isProcessingCall);
+  console.log('📱 Accept with media:', withMedia);
+  
+  if (!incomingCall || isProcessingCall) {
+    console.log('❌ Cannot accept:', { 
+      hasCall: !!incomingCall, 
+      isProcessing: isProcessingCall 
+    });
+    return;
+  }
+  
+  const callId = incomingCall.id;
+  
+  if (!callId || typeof callId !== 'number') {
+    console.error('❌ Invalid call ID:', callId);
+    setIncomingCall(null);
+    return;
+  }
+  
+  setIsProcessingCall(true);
+  
+  try {
+    console.log('📞 Calling acceptCall API for ID:', callId);
+    
+    // Проверяем доступность медиа устройств только если пользователь хочет их использовать
+    if (withMedia) {
+      if (incomingCall.type === 'video') {
+        try {
+          await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        } catch (mediaError) {
+          console.warn('Video/audio access denied, continuing without media')
+          // Не прерываем процесс, просто продолжаем без медиа
+        }
+      } else {
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true })
+        } catch (mediaError) {
+          console.warn('Audio access denied, continuing without media')
+          // Не прерываем процесс, просто продолжаем без медиа
+        }
+      }
+    }
+    
+    // Показываем статус загрузки
+    const callData = await acceptCall(callId);
+    
+    console.log('✅ Call accepted successfully:', callData);
+    
+    // Сначала очищаем входящий звонок
+    setIncomingCall(null);
+    
+    // Затем устанавливаем активный звонок
+    setActiveCall(callData);
+    setIsCallActive(true);
+    
+    // Инвалидируем кэш
+    queryClient.invalidateQueries({ queryKey: ['active-call', chatInfo.id] });
+    
+  } catch (error) {
+    console.error('❌ Error accepting call:', error);
+    
+    // В любом случае очищаем входящий звонок
+    setIncomingCall(null);
+    
+    // Пробуем получить текущий статус звонка
+    try {
+      const currentCall = await getActiveCallInChat(chatInfo.id);
+      if (currentCall?.participants.some(p => p.userId === currentUser.id)) {
+        console.log('🔄 Fallback: user is already in call');
+        setActiveCall(currentCall);
+        setIsCallActive(true);
+      }
+    } catch (fallbackError) {
+      console.error('Fallback failed:', fallbackError);
+    }
+    
+    // Показываем ошибку пользователю
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка при принятии звонка'
+    alert(errorMessage);
+  } finally {
+    setIsProcessingCall(false);
+  }
+};
+
+const handleDeclineCall = async () => {
+  if (!incomingCall || isProcessingCall) return;
+  
+  setIsProcessingCall(true);
+  try {
+    // 1. Сразу убираем уведомление
+    setIncomingCall(null);
+    
+    // 2. Отклоняем звонок
+    await declineCall(incomingCall.id);
+    
+    // 3. Инвалидируем кэш
+    queryClient.invalidateQueries({ queryKey: ['active-call', chatInfo.id] });
+    
+  } catch (error) {
+    console.error('Error declining call:', error);
+    // Даже при ошибке не показываем уведомление снова
+  } finally {
+    setIsProcessingCall(false);
+  }
+};
+
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    // Enter - принять звонок
+    if (e.key === 'Enter' && incomingCall && !isProcessingCall) {
+      e.preventDefault();
+      handleAcceptCall();
+    }
+    // Escape - отклонить звонок
+    if (e.key === 'Escape' && incomingCall && !isProcessingCall) {
+      e.preventDefault();
+      handleDeclineCall();
+    }
+  };
+
+  if (incomingCall) {
+    document.addEventListener('keydown', handleKeyDown);
+  }
+
+  return () => {
+    document.removeEventListener('keydown', handleKeyDown);
+  };
+}, [incomingCall, isProcessingCall]);
 
 // Функция для запуска анимации поднимания микрофона
 const animateMicrophone = () => {
@@ -2871,6 +3406,11 @@ const handleSendVideoMessage = async (videoBlob: Blob) => {
     }
   }
 
+  const handleEmojiSelect = (emoji: string) => {
+    setNewMessage(prev => prev + emoji);
+    setShowStickers(false);
+  };
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
     
@@ -3186,6 +3726,43 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
     }
   }
 
+  const getCallParticipants = () => {
+    if (!activeCall || !localStream) return [];
+    
+    const participants = [];
+    
+    // Добавляем локального пользователя
+    participants.push({
+      user: currentUser,
+      stream: localStream,
+      isVideoEnabled: isVideoEnabled && activeCall.type === 'video',
+      isAudioEnabled: isAudioEnabled,
+      isSpeaking: false,
+      isLocal: true
+    });
+    
+    // Добавляем удаленных участников
+    remoteStreams.forEach((stream, userId) => {
+      const participantData = activeCall.participants.find(p => p.userId === userId);
+      participants.push({
+        user: participantData?.user || { 
+          id: userId, 
+          name: 'Участник', 
+          surname: '', 
+          email: '',
+          avatar: null
+        },
+        stream,
+        isVideoEnabled: activeCall.type === 'video',
+        isAudioEnabled: true,
+        isSpeaking: false,
+        isLocal: false
+      });
+    });
+    
+    return participants;
+  };
+
   const getChatUserId = () => {
     if (chatInfo.type === 'GROUP') {
       return `/chat-data/${chatInfo.id}`
@@ -3393,6 +3970,42 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
           {chatInfo.type === 'GROUP' && (
                 <GroupOnlineStatus chatId={chatInfo.id} />
               )}
+
+{renderCallButtons()}
+    
+    {/* Интерфейс активного звонка */}
+    {isCallActive && activeCall && (
+  <CallInterface
+    callId={String(activeCall.id)}
+    currentUser={currentUser}
+    participantsFromDB={activeCall.participants}
+    callType={activeCall.type}
+    onToggleAudio={toggleAudio}
+    onToggleVideo={toggleVideo}
+    onEndCall={handleEndCall}
+    onToggleScreenShare={toggleScreenShare}
+    isScreenSharing={isScreenSharing}
+    localStream={localStream}
+    remoteStreams={remoteStreams}
+    isAudioEnabled={isAudioEnabled}
+    isVideoEnabled={isVideoEnabled}
+    webRTCParticipants={webRTCParticipants}
+    peerConnections={peerConnections}
+    onRetryConnection={retryConnection}
+  />
+)}
+    
+    {/* Уведомление о входящем звонке */}
+    {incomingCall && !isProcessingCall && !activeCall && (
+  <CallNotification
+    callId={String(incomingCall.id)}
+    caller={chatInfo.members.find(m => m.userId === incomingCall.initiatorId)?.user || currentUser}
+    callType={incomingCall.type}
+    chatId={chatInfo.id}
+    onAccept={handleAcceptCall}
+    onDecline={handleDeclineCall}
+  />
+)}
           
           <AnimateIcon animateOnHover>
           <button
@@ -3744,11 +4357,12 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
           </form>
 
           {showStickers && (
-            <StickerPicker 
-              onStickerSelect={handleSendSticker}
-              onClose={() => setShowStickers(false)}
-            />
-          )}
+  <StickerPicker 
+    onStickerSelect={handleSendSticker}
+    onEmojiSelect={handleEmojiSelect}
+    onClose={() => setShowStickers(false)}
+  />
+)}
         </div>
         </div>
       ) : (

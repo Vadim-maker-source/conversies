@@ -421,7 +421,6 @@ export async function sendMessage(
 }
 
 // Получение сообщений чата
-// Получение сообщений чата
 export async function getChatMessages(chatId: number, page: number = 1, limit: number = 50) {
   const currentUser = await getCurrentUser()
   if (!currentUser) return []

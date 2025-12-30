@@ -36,6 +36,9 @@ import {
 import { GiftsSection } from '@/components/GiftsSection'
 import QRScanner from '@/components/QRScanner'
 
+import { AddressSuggestions } from 'react-dadata';
+import { AddressInput } from '@/components/address-input'
+
 interface CoinsSectionProps {
   settings: any
   onBack: () => void
@@ -561,13 +564,59 @@ function ActionPage({
                     О себе
                   </label>
                   <textarea
-                    value={settings.about}
+                    value={settings.about || ''}
                     onChange={(e) => setSettings((prev: any) => ({ ...prev, about: e.target.value }))}
                     className="w-full px-3 py-2 bg-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 border border-gray-600"
                     placeholder="Расскажите о себе"
                     required
                   />
-                </div>
+              </div>
+
+              <div>
+                  <label className="block text-white text-sm font-medium mb-2">
+                    Имя пользователя
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.username}
+                    onChange={(e) => setSettings((prev: any) => ({ ...prev, username: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 border border-gray-600"
+                    placeholder="Введите имя пользователя"
+                    required
+                  />
+              </div>
+
+              <div>
+  <label className="block text-white text-sm font-medium mb-2">
+    Местоположение
+  </label>
+  
+  <AddressInput 
+    value={settings.placeData ? { 
+      value: settings.place, 
+      data: settings.placeData,
+      unrestricted_value: settings.place
+    } : null}
+    onChange={(suggestion) => {
+      if (suggestion) {
+        setSettings((prev: any) => ({
+          ...prev,
+          place: suggestion.value,
+          placeData: suggestion.data
+        }));
+      } else {
+        setSettings((prev: any) => ({
+          ...prev,
+          place: '',
+          placeData: null
+        }));
+      }
+    }}
+    placeholder="Введите город, адрес или страну"
+    className="w-full"
+    allowInternational={true}
+  />
+</div>
 
               <button
                 onClick={onUpdateProfile}
@@ -884,7 +933,9 @@ function SettingsContent() {
     about: '',
     avatar: '',
     isPremium: false,
-    coins: 0
+    coins: 0,
+    username: '',
+    place: '',
   })
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -926,7 +977,10 @@ const handleAddCoins = async (coinsAmount: number) => {
           about: updatedSettings.bio || '',
           avatar: updatedSettings.avatar || '',
           isPremium: updatedSettings.isPremium || false,
-          coins: updatedSettings.coins || 0})
+          coins: updatedSettings.coins || 0,
+          username: updatedSettings.username || '',
+          place: updatedSettings.place || ''
+        })
       }
     }
   } catch (error) {
@@ -1033,7 +1087,9 @@ const loadTwoFactorStatus = async () => {
           about: String(userSettings.bio) || '',
           avatar: userSettings.avatar || '',
           isPremium: userSettings.isPremium || false,
-          coins: Number(userSettings.coins)
+          coins: Number(userSettings.coins),
+          username: userSettings.username || '',
+          place: userSettings.place || ''
         })
       }
     } catch (error) {
@@ -1061,6 +1117,8 @@ const loadTwoFactorStatus = async () => {
       formData.append('name', settings.name)
       formData.append('surname', settings.surname)
       formData.append('about', settings.about)
+      formData.append('username', settings.username)
+      formData.append('place', settings.place)
 
       const result = await updateUserSettings(formData)
       if (result.error) {
@@ -1102,7 +1160,7 @@ const handleQRScan = async (scannedData: string) => {
           type: 'web'
         },
         userAgent: navigator.userAgent
-      }, currentUser.email);
+      }, String(currentUser.email));
       
       if (result.error) {
         setMessage(result.error);

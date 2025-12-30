@@ -307,6 +307,7 @@ export default function ChatDataPage() {
     if (user.avatar) {
       return <img src={user.avatar} alt={String(user.name)} className="w-10 h-10 rounded-full object-cover" />
     }
+    if(!user.email) return null
     const first = user.name?.[0]?.toUpperCase() || ''
     const second = user.surname?.[0]?.toUpperCase() || ''
     return first + second || user.email[0].toUpperCase()

@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { createUser } from '@/app/lib/api/user'
 import Image from 'next/image'
+import PhoneInput from 'react-phone-input-2'
+import 'react-phone-input-2/lib/style.css'
+import ru from 'react-phone-input-2/lang/ru.json'
 
 type FormData = {
   name: string
@@ -253,16 +256,15 @@ function SignUpPage() {
                 <label htmlFor="phone" className="block text-sm font-medium text-white">
                   Телефон
                 </label>
-                <input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  required
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  className="mt-1 duration-200 appearance-none relative block w-full px-4 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
-                  placeholder="Введите ваш телефон"
-                />
+                <PhoneInput
+        localization={ru}
+        country={"ru"}
+  value={formData.phone}
+  onChange={(e) => setFormData((prev: any) => ({ ...prev, phone: e}))}
+  containerClass="focus:border-orange-500 outline-0 hover:border-gray-300 duration-200 bg-transparent"
+  inputClass="focus:border-orange-500 outline-0 hover:border-gray-300 duration-200 bg-transparent"
+  inputStyle={{ borderColor: "#e5e7eb", width: "100%", borderRadius: "0.25rem", height: 40, paddingRight: 8, textAlign: "center", paddingInline: 16, }}
+/>
               </div>
             </div>
           )}

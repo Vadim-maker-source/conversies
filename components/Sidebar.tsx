@@ -18,6 +18,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowLeft, faArrowRight, faSearch, faUsers, faUser, faHashtag } from '@fortawesome/free-solid-svg-icons'
 import { Unbounded } from 'next/font/google'
 import { useIsMobile } from '@/hooks/use-is-mobile'
+import { useChatStore } from '@/store/chatStore'
 
 export type SearchUser = {
   id: number
@@ -50,22 +51,20 @@ export default function Sidebar() {
   const isMobile = useIsMobile()
   const [isExpanded, setIsExpanded] = useState(true)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
-  const [chats, setChats] = useState<ChatWithDetails[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResults>({ users: [], chats: [] })
   const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
   const router = useRouter()
 
+  const { chats, fetchChats } = useChatStore()
+
   useEffect(() => {
     async function loadData() {
       try {
-        const [user, userChats] = await Promise.all([
-          getCurrentUser(),
-          getUserChats()
-        ])
+        const user = await getCurrentUser()
         setCurrentUser(user)
-        setChats(userChats)
+        fetchChats()
       } catch (error) {
         console.error('Error loading data:', error)
       } finally {
@@ -173,6 +172,7 @@ export default function Sidebar() {
     if(user.avatar){
         return <img src={user.avatar} alt={String(user.name)} className="rounded-full" />
     }
+    if(!user.email) return null
     const first = user.name?.[0]?.toUpperCase() || ''
     const second = user.surname?.[0]?.toUpperCase() || ''
     return first + second || user.email[0].toUpperCase()

@@ -1,16 +1,66 @@
+import { Account, BotVote, DeviceLinkingToken, DeviceSession, EventProgress, ForumComment, ForumPost, ForumPostSubscription, ForumPostView, ForumReaction, ForumUserFollow, Gift, MessageRead } from "@prisma/client"
+
 export type User = {
   id: number
-  name: string | null
-  surname: string | null
+  name?: string | null
+  surname?: string | null
   bio?: string | null
-  email: string
-  phone: string | null
+  email?: string | null
+  phone?: string | null
   avatar?: string | null
   password?: string | null
   isPremium?: boolean
+  notificationMode?: 'none' | 'normal' | 'all'
+  twoFactorEnabled?: boolean
   coins?: number
+  username?: string | null
+  place?: string | null
+  lastSeen?: Date
+  isOnline?: boolean
+  twoFactorCode?: string | null
+  twoFactorExpires?: Date | null
   createdAt?: Date
   updatedAt?: Date
+  
+  // Relations
+  accounts?: Account[]
+  sentGifts?: Gift[]
+  receivedGifts?: Gift[]
+  chatMembers?: ChatMember[]
+  messages?: Message[]
+  contactsOwned?: Contact[]
+  contactsAdded?: Contact[]
+  initiatedCalls?: Call[]
+  callParticipations?: CallParticipant[]
+  reactions?: Reaction[]
+  messageReads?: MessageRead[]
+  deviceLinkingTokens?: DeviceLinkingToken[]
+  deviceSessions?: DeviceSession[]
+  eventProgresses?: EventProgress[]
+  botVotes?: BotVote[]
+  
+  // Forum relations
+  forumFollowers?: ForumUserFollow[] // Кто подписан на этого пользователя
+  forumFollowing?: ForumUserFollow[] // На кого подписан этот пользователь
+  forumPosts?: ForumPost[]
+  forumComments?: ForumComment[]
+  forumReactions?: ForumReaction[]
+  forumPostSubscriptions?: ForumPostSubscription[]
+  forumPostViews?: ForumPostView[]
+  
+  // Counts (optional, for includes)
+  _count?: {
+    forumPosts?: number
+    forumComments?: number
+    forumFollowers?: number
+    forumFollowing?: number
+    forumReactions?: number
+    messages?: number
+    sentGifts?: number
+    receivedGifts?: number
+    contactsOwned?: number
+    contactsAdded?: number
+  }
 }
 
 export type SafeUser = Omit<User, 'password'> & {
@@ -165,4 +215,37 @@ export type TemporaryMessage = Omit<Message, 'id'> & {
     readAt: Date;
     user: User;
   }>;
+}
+
+export interface Call {
+  id: number
+  chatId: number
+  initiatorId: number
+  type: 'audio' | 'video'
+  status: 'ringing' | 'active' | 'ended' | 'missed' | 'declined'
+  startTime: Date
+  endTime?: Date
+  duration?: number
+  initiator: User
+  participants: CallParticipant[]
+}
+
+export interface CallParticipant {
+  id: number
+  callId: number
+  userId: number
+  joinedAt: Date
+  leftAt?: Date
+  user: User
+}
+
+export interface SubscriptionResponse {
+  success?: boolean
+  subscribed?: boolean
+  error?: string
+}
+
+export interface PostSubscriptionCheck {
+  subscribed: boolean
+  error?: string
 }

@@ -374,23 +374,74 @@ export async function createUser(data: RegisterData) {
   }
 }
 
-export async function getUserById(id: number) {
+export async function getUserById(id: number): Promise<User | null> {
   try {
     const user = await prisma.user.findUnique({
       where: { id },
-      select: {
-        id: true,
-        name: true,
-        surname: true,
-        bio: true,
-        email: true,
-        phone: true,
-        isPremium: true,
-        avatar: true,
-        coins: true
+      include: {
+        _count: {
+          select: {
+            forumPosts: true,
+            forumComments: true,
+            forumFollowing: true,
+            forumFollowers: true
+          }
+        },
+
+        forumPosts: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            title: true,
+            content: true,
+            createdAt: true,
+            updatedAt: true,
+            authorId: true,
+            categoryId: true,
+            location: true,
+            images: true,
+            isPinned: true,
+            isLocked: true,
+            viewsCount: true,
+            category: {
+              select: {
+                title: true,
+                slug: true
+              }
+            },
+            _count: {
+              select: {
+                comments: true,
+                reactions: true
+              }
+            }
+          }
+        },
+
+        forumComments: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            updatedAt: true,
+            authorId: true,
+            postId: true,
+            parentId: true,
+            isEdited: true,
+            post: {
+              select: {
+                id: true,
+                title: true
+              }
+            }
+          }
+        }
       }
     })
-    return user
+    return user as User
   } catch (error) {
     console.error('Error fetching user:', error)
     return null
@@ -453,6 +504,8 @@ export async function updateUserSettings(formData: FormData) {
     const name = formData.get('name') as string
     const surname = formData.get('surname') as string
     const bio = formData.get('about') as string
+    const username = formData.get('username') as string
+    const place = formData.get('place') as string
     
     if (!name) {
       return { error: 'Имя обязательно' }
@@ -465,7 +518,9 @@ export async function updateUserSettings(formData: FormData) {
       data: {
         name,
         surname,
-        bio
+        bio,
+        username,
+        place
       },
       select: {
         id: true,
@@ -475,6 +530,8 @@ export async function updateUserSettings(formData: FormData) {
         email: true,
         phone: true,
         isPremium: true,
+        username: true,
+        place: true,
         createdAt: true,
         updatedAt: true
       }
