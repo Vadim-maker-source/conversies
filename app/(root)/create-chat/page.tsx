@@ -124,6 +124,7 @@ export default function CreateChatPage() {
   const getUserInitials = (user: User) => {
     const first = user.name?.[0]?.toUpperCase() || ''
     const second = user.surname?.[0]?.toUpperCase() || ''
+    if(!user.email) return null
     return first + second || user.email[0].toUpperCase()
   }
 

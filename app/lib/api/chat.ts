@@ -266,7 +266,24 @@ export async function getUserChats(): Promise<ChatWithDetails[]> {
       include: {
         members: {
           include: {
-            user: true
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                email: true,
+                phone: true,
+                avatar: true,
+                isPremium: true,
+                isOnline: true,
+                lastSeen: true,
+                notificationMode: true, // Добавлено
+                username: true, // Добавлено
+                place: true, // Добавлено
+                bio: true, // Добавлено
+                coins: true // Добавлено
+              }
+            }
           }
         },
         messages: {
@@ -275,7 +292,20 @@ export async function getUserChats(): Promise<ChatWithDetails[]> {
           },
           take: 1,
           include: {
-            user: true
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                email: true,
+                phone: true,
+                avatar: true,
+                isPremium: true,
+                notificationMode: true, // Добавлено
+                username: true, // Добавлено
+                place: true // Добавлено
+              }
+            }
           }
         },
         pinnedMessage: {
@@ -285,7 +315,8 @@ export async function getUserChats(): Promise<ChatWithDetails[]> {
                 id: true,
                 name: true,
                 surname: true,
-                avatar: true
+                avatar: true,
+                notificationMode: true // Добавлено
               }
             }
           }
@@ -303,7 +334,20 @@ export async function getUserChats(): Promise<ChatWithDetails[]> {
 
     return chats.map(chat => ({
       ...chat,
-      lastMessage: chat.messages[0] || undefined
+      members: chat.members.map(member => ({
+        ...member,
+        user: {
+          ...member.user,
+          notificationMode: member.user.notificationMode === null ? undefined : member.user.notificationMode as 'none' | 'normal' | 'all'
+        }
+      })),
+      lastMessage: chat.messages[0] ? {
+        ...chat.messages[0],
+        user: {
+          ...chat.messages[0].user,
+          notificationMode: chat.messages[0].user.notificationMode === null ? undefined : chat.messages[0].user.notificationMode as 'none' | 'normal' | 'all'
+        }
+      } : undefined
     }))
   } catch (error) {
     console.error('Error fetching user chats:', error)
