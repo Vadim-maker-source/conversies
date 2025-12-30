@@ -4,11 +4,11 @@ import { usePathname, useSearchParams } from "next/navigation"
 import ScrollToTopButton from '@/components/ScrollToTopButton'
 import { updateOnlineStatus } from "../lib/api/online-status"
 import { getCurrentUser } from "../lib/api/user"
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { User } from "../lib/types"
 import Snowfall from "@/components/Snowfall"
 
-const ForumLayout = ({ children }: { children: React.ReactNode }) => {
+const ForumLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -68,9 +68,9 @@ const ForumLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <>
-      <div 
+      <div
         className="min-h-screen w-full"
-        style={{ 
+        style={{
           background: 'radial-gradient(circle at top center, #7c3aed 0%, #0b0b0b 70%)',
           backgroundAttachment: 'fixed'
         }}
@@ -84,6 +84,14 @@ const ForumLayout = ({ children }: { children: React.ReactNode }) => {
         <ScrollToTopButton />
       </div>
     </>
+  )
+}
+
+const ForumLayout = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ForumLayoutContent>{children}</ForumLayoutContent>
+    </Suspense>
   )
 }
 
