@@ -9,8 +9,6 @@ import { User } from "../lib/types"
 import Snowfall from "@/components/Snowfall"
 
 const ForumLayoutContent = ({ children }: { children: React.ReactNode }) => {
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
 
   const [user, setUser] = useState<User | null>(null)
 
