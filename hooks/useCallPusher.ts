@@ -26,7 +26,7 @@ export default function useCallPusher({
   onWebRTCSignal
 }: UseCallPusherProps) {
   useEffect(() => {
-    if (!currentUser.id) return
+    if (!currentUser?.id || !pusherClient) return
 
     // Подписываемся на каналы
     const userChannel = pusherClient.subscribe(`user-${currentUser.id}`)
@@ -60,10 +60,12 @@ export default function useCallPusher({
 
   // Функция для отправки сигналов WebRTC
   const sendWebRTCSignal = useCallback((callId: number, signal: any, targetUserId?: number) => {
-    const channel = targetUserId 
+    if (!pusherClient) return
+
+    const channel = targetUserId
       ? pusherClient.channel(`user-${targetUserId}`)
       : pusherClient.channel(`call-${callId}`)
-    
+
     if (channel) {
       channel.trigger('client-webrtc-signal', {
         fromUserId: currentUser.id,
@@ -76,6 +78,8 @@ export default function useCallPusher({
 
   // Функция для отправки ICE кандидатов
   const sendIceCandidate = useCallback((callId: number, candidate: any, targetUserId: number) => {
+    if (!pusherClient) return
+
     const channel = pusherClient.channel(`user-${targetUserId}`)
     if (channel) {
       channel.trigger('client-ice-candidate', {
