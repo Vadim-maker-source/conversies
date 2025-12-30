@@ -20,7 +20,7 @@ export default function PostActions({ postId, isAuthor, isPinned, isLocked }: Po
     setIsLoading(true)
     try {
       const result = await togglePostSubscription(postId)
-      if (result.success) {
+      if (result.success && result.subscribed !== undefined) {
         setIsSubscribed(result.subscribed)
       }
     } catch (error) {
