@@ -86,8 +86,16 @@ export function useUserStatus(userId: number) {
   const fetchStatus = useCallback(async () => {
     if (!userId || isFetching.current) return
     isFetching.current = true
+    const lastFetchTime = useRef(0)
 
     try {
+      const now = Date.now()
+    if (now - lastFetchTime.current < 30000) {
+      return
+    }
+
+    isFetching.current = true
+    lastFetchTime.current = now
       const res = await fetch(`/api/update-status?userId=${userId}`, {
         method: 'GET',
       })
@@ -111,7 +119,7 @@ export function useUserStatus(userId: number) {
 
   useEffect(() => {
     fetchStatus()
-    const id = setInterval(fetchStatus, 120_000)
+    const id = setInterval(fetchStatus, 60000)
     return () => clearInterval(id)
   }, [fetchStatus])
 
@@ -151,7 +159,7 @@ export function useChatUsersStatus(chatId: number) {
   useEffect(() => {
     fetchStatuses()
 
-    const id = setInterval(fetchStatuses, 180_000)
+    const id = setInterval(fetchStatuses, 180000)
     return () => clearInterval(id)
   }, [fetchStatuses])
 

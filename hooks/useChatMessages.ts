@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getChatMessages, sendMessage, markMessageAsRead, sendVoiceMessage } from '@/app/lib/api/chat'
 import { Message, User, ChatWithDetails, MessageWithFiles, TemporaryMessage } from '@/app/lib/types'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
+import { pusherClient } from '@/app/lib/pusher-client'
 
 interface UseChatMessagesProps {
   chatId: number
@@ -15,15 +16,13 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
   const { data: messages, isLoading, error } = useQuery({
     queryKey: ['chat-messages', chatId],
     queryFn: () => getChatMessages(chatId),
-    refetchInterval: 300,
-    staleTime: 1000,
+    refetchInterval: false, // Отключить polling
+    staleTime: 60000, // 60 секунд
   })
 
-  // Функция для отметки сообщения как прочитанного
-  const markAsRead = async (messageId: number) => {
+  const markAsRead = useCallback(async (messageId: number) => {
     try {
       await markMessageAsRead(messageId)
-      // Обновляем состояние сообщения
       queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
         return old.map(msg => {
           if (msg.id === messageId && msg.userId !== currentUser.id) {
@@ -40,58 +39,75 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
     } catch (error) {
       console.error('Error marking message as read:', error)
     }
-  }
+  }, [chatId, currentUser.id, queryClient])
 
-  // Автоматическая отметка сообщений при их появлении в viewport
+  useEffect(() => {
+    const channel = pusherClient?.subscribe(`chat-${chatId}`)
+    
+    channel?.bind('message-sent', (data: MessageWithFiles) => {
+      queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
+        // Проверяем, нет ли уже такого сообщения
+        if (old.some(msg => msg.id === data.id)) return old
+        return [...old, data]
+      })
+    })
+    
+    channel?.bind('message-updated', (data: MessageWithFiles) => {
+      queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
+        return old.map(msg => msg.id === data.id ? data : msg)
+      })
+    })
+    
+    channel?.bind('message-deleted', (data: { id: number }) => {
+      queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
+        return old.filter(msg => msg.id !== data.id)
+      })
+    })
+
+    return () => {
+      channel?.unsubscribe()
+    }
+  }, [chatId, queryClient])
+
   useEffect(() => {
     if (!messages) return
-
+  
+    let timeoutId: NodeJS.Timeout
+    
     const handleMessageRead = () => {
-      messages.forEach(message => {
-        if (message.userId !== currentUser.id && !message.isReadByCurrentUser) {
-          const element = document.getElementById(`message-${message.id}`)
-          if (element) {
-            const rect = element.getBoundingClientRect()
-            if (rect.top >= 0 && rect.bottom <= window.innerHeight) {
-              markAsRead(message.id)
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => {
+        messages.forEach(message => {
+          if (message.userId !== currentUser.id && !message.isReadByCurrentUser) {
+            const element = document.getElementById(`message-${message.id}`)
+            if (element) {
+              const rect = element.getBoundingClientRect()
+              if (rect.top >= 0 && rect.bottom <= window.innerHeight) {
+                markAsRead(message.id)
+              }
             }
           }
-        }
-      })
+        })
+      }, 500) // Задержка 500ms
     }
-
+  
     handleMessageRead()
-
+    
     const messagesContainer = document.getElementById('messages-container')
     if (messagesContainer) {
       messagesContainer.addEventListener('scroll', handleMessageRead)
     }
-
+  
     window.addEventListener('resize', handleMessageRead)
-
+  
     return () => {
+      clearTimeout(timeoutId)
       if (messagesContainer) {
         messagesContainer.removeEventListener('scroll', handleMessageRead)
       }
       window.removeEventListener('resize', handleMessageRead)
     }
-  }, [messages, currentUser.id, chatId])
-
-  const addMessage = (message: Message) => {
-    queryClient.setQueryData(['chat-messages', chatId], (old: Message[] = []) => {
-      return [...old, message]
-    })
-  }
-
-  const updateMessageReactions = (messageId: number, reactions: Record<string, User[]>) => {
-    queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
-      return old.map(msg => 
-        msg.id === messageId 
-          ? { ...msg, reactions }
-          : msg
-      )
-    })
-  }
+  }, [messages, currentUser.id, chatId, markAsRead])
 
   const sendMessageOptimistic = async (
     content: string, 
@@ -102,22 +118,44 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
   ) => {
     const tempId = Date.now()
     
-    // Определяем imageUrl для изображений
-    let finalImageUrl = imageUrl || null
-    if (!imageUrl && fileUrls && fileUrls.length > 0) {
-      const firstFile = fileUrls[0]
-      if (firstFile && firstFile.match(/\.(jpg|jpeg|png|gif|webp|avif)$/i)) {
-        finalImageUrl = firstFile
-      }
-    } else if (!imageUrl && fileUrl && fileUrl.match(/\.(jpg|jpeg|png|gif|webp|avif)$/i)) {
-      finalImageUrl = fileUrl
-    }
-
-    // Определяем, является ли это голосовым сообщением
-    const isVoiceMessage = Boolean(!content && fileUrl && fileUrl.match(/\.(mp3|wav|ogg|webm)$/i))
+    // Создаем массивы для изображений и файлов
+    const allFileUrls: string[] = []
+    const imageUrls: string[] = []
     
-    // Определяем, является ли это видеосообщением
-    const isVideoMessage = Boolean(content === '🎥 Видеосообщение' && fileUrl && fileUrl.match(/\.(mp4|webm|mov)$/i))
+    // Обрабатываем отдельные URL
+    if (fileUrl) allFileUrls.push(fileUrl)
+    if (fileUrls) allFileUrls.push(...fileUrls)
+    
+    // Определяем, является ли это стикером
+    const isSticker = imageUrl?.includes('/stickers/') || false
+    
+    // Обрабатываем изображения
+    if (imageUrl) {
+      imageUrls.push(imageUrl)
+      if (!allFileUrls.includes(imageUrl)) {
+        allFileUrls.push(imageUrl)
+      }
+    }
+    
+    // Проверяем файлы на изображения
+    allFileUrls.forEach(url => {
+      if (url.match(/\.(jpg|jpeg|png|gif|webp|avif|svg)$/i) && !imageUrls.includes(url)) {
+        imageUrls.push(url)
+      }
+    })
+
+    // Определяем типы сообщений
+    const isVoiceMessage = Boolean(
+      !content && 
+      allFileUrls.length > 0 && 
+      allFileUrls.some(url => url.match(/\.(mp3|wav|ogg|webm)$/i))
+    )
+    
+    const isVideoMessage = Boolean(
+      content === '🎥 Видеосообщение' && 
+      allFileUrls.length > 0 && 
+      allFileUrls.some(url => url.match(/\.(mp4|webm|mov)$/i))
+    )
 
     // Создаем временное сообщение
     const tempMessage: TemporaryMessage = {
@@ -126,22 +164,21 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
       userId: currentUser.id,
       chatId,
       messageId: replyToId || null,
-      imageUrl: finalImageUrl,
-      fileUrl: fileUrl || null,
-      fileUrls: fileUrls || [],
+      // Используем только массивы
+      imageUrls: isSticker ? [imageUrl!] : imageUrls,
+      fileUrls: allFileUrls,
       isEdited: false,
       isShared: false,
-      user: currentUser,
       createdAt: new Date(),
       updatedAt: new Date(),
+      user: currentUser,
       botId: null,
       pollId: null,
-      // Добавляем поля для прочтения
+      // Дополнительные поля
       readStatus: 'sent',
       readCount: 0,
       totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
       isReadByCurrentUser: true,
-      // Добавляем флаги типов сообщений
       isVoiceMessage,
       reactions: {},
       readBy: []
@@ -155,30 +192,34 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
     try {
       let result
       if (isVoiceMessage) {
-        // Отправляем голосовое сообщение
-        result = await sendVoiceMessage(chatId, fileUrl!)
-      } else if (isVideoMessage) {
-        // Отправляем видеосообщение как обычное сообщение с файлом
-        result = await sendMessage(chatId, content, fileUrl, undefined, fileUrls, replyToId)
+        result = await sendVoiceMessage(chatId, allFileUrls[0])
       } else {
-        // Отправляем обычное сообщение
-        result = await sendMessage(chatId, content, fileUrl, imageUrl, fileUrls, replyToId)
+        result = await sendMessage(
+          chatId, 
+          content, 
+          fileUrl, 
+          imageUrl, 
+          fileUrls, 
+          replyToId
+        )
       }
       
-      // Сохраняем fileUrls и добавляем данные прочтения
+      // Преобразуем результат к MessageWithFiles
+      const resultWithFiles: MessageWithFiles = {
+        ...result,
+        imageUrls: result.imageUrls || imageUrls,
+        fileUrls: result.fileUrls || allFileUrls,
+        readStatus: 'sent',
+        readCount: 0,
+        totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
+        isReadByCurrentUser: true,
+        isVoiceMessage
+      }
+
       queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
         return old.map(msg => {
           if (msg.id === tempId) {
-            return { 
-              ...result, 
-              fileUrls: msg.fileUrls || result.fileUrls || [],
-              imageUrl: msg.imageUrl || result.imageUrl,
-              readStatus: 'sent',
-              readCount: 0,
-              totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
-              isReadByCurrentUser: true,
-              isVoiceMessage: msg.isVoiceMessage || false
-            } as MessageWithFiles
+            return resultWithFiles
           }
           return msg
         })
@@ -191,25 +232,22 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
     }
   }
 
-  // Функция для отправки голосового сообщения
   const sendVoiceMessageOptimistic = async (voiceFileUrl: string, replyToId?: number) => {
     const tempId = Date.now()
     
-    // Создаем временное голосовое сообщение
     const tempMessage: TemporaryMessage = {
       id: tempId,
-      content: '', // Пустой контент для голосовых сообщений
+      content: '',
       userId: currentUser.id,
       chatId,
       messageId: replyToId || null,
-      imageUrl: null,
-      fileUrl: voiceFileUrl,
+      imageUrls: [],
       fileUrls: [voiceFileUrl],
       isEdited: false,
       isShared: false,
-      user: currentUser,
       createdAt: new Date(),
       updatedAt: new Date(),
+      user: currentUser,
       botId: null,
       pollId: null,
       readStatus: 'sent',
@@ -221,7 +259,6 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
       readBy: []
     }
 
-    // Оптимистичное обновление
     queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
       return [...old, tempMessage as MessageWithFiles]
     })
@@ -229,19 +266,21 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
     try {
       const result = await sendVoiceMessage(chatId, voiceFileUrl)
       
-      // Обновляем сообщение с данными с сервера
+      const resultWithFiles: MessageWithFiles = {
+        ...result,
+        imageUrls: result.imageUrls || [],
+        fileUrls: result.fileUrls || [voiceFileUrl],
+        readStatus: 'sent',
+        readCount: 0,
+        totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
+        isReadByCurrentUser: true,
+        isVoiceMessage: true
+      }
+
       queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
         return old.map(msg => {
           if (msg.id === tempId) {
-            return {
-              ...result,
-              fileUrls: msg.fileUrls || result.fileUrls || [],
-              readStatus: 'sent',
-              readCount: 0,
-              totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
-              isReadByCurrentUser: true,
-              isVoiceMessage: true
-            } as unknown as MessageWithFiles
+            return resultWithFiles
           }
           return msg
         })
@@ -254,25 +293,22 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
     }
   }
 
-  // НОВАЯ ФУНКЦИЯ: Отправка видеосообщения
   const sendVideoMessageOptimistic = async (videoFileUrl: string, replyToId?: number) => {
     const tempId = Date.now()
     
-    // Создаем временное видеосообщение
     const tempMessage: TemporaryMessage = {
       id: tempId,
       content: '🎥 Видеосообщение',
       userId: currentUser.id,
       chatId,
       messageId: replyToId || null,
-      imageUrl: null,
-      fileUrl: videoFileUrl,
+      imageUrls: [],
       fileUrls: [videoFileUrl],
       isEdited: false,
       isShared: false,
-      user: currentUser,
       createdAt: new Date(),
       updatedAt: new Date(),
+      user: currentUser,
       botId: null,
       pollId: null,
       readStatus: 'sent',
@@ -284,13 +320,11 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
       readBy: []
     }
 
-    // Оптимистичное обновление
     queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
       return [...old, tempMessage as MessageWithFiles]
     })
 
     try {
-      // Используем обычную функцию sendMessage для видеосообщений
       const result = await sendMessage(
         chatId, 
         '🎥 Видеосообщение', 
@@ -300,19 +334,21 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
         replyToId
       )
       
-      // Обновляем сообщение с данными с сервера
+      const resultWithFiles: MessageWithFiles = {
+        ...result,
+        imageUrls: result.imageUrls || [],
+        fileUrls: result.fileUrls || [videoFileUrl],
+        readStatus: 'sent',
+        readCount: 0,
+        totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
+        isReadByCurrentUser: true,
+        isVoiceMessage: false
+      }
+
       queryClient.setQueryData(['chat-messages', chatId], (old: MessageWithFiles[] = []) => {
         return old.map(msg => {
           if (msg.id === tempId) {
-            return {
-              ...result,
-              fileUrls: msg.fileUrls || result.fileUrls || [],
-              readStatus: 'sent',
-              readCount: 0,
-              totalMembers: chatInfo?.members.length ? chatInfo.members.length - 1 : 0,
-              isReadByCurrentUser: true,
-              isVoiceMessage: false
-            } as unknown as MessageWithFiles
+            return resultWithFiles
           }
           return msg
         })
@@ -329,11 +365,9 @@ export function useChatMessages({ chatId, currentUser, chatInfo }: UseChatMessag
     messages: messages || [],
     isLoading,
     error,
-    addMessage,
     sendMessageOptimistic,
     sendVoiceMessageOptimistic,
     sendVideoMessageOptimistic,
-    markAsRead,
-    updateMessageReactions
+    markAsRead
   }
 }

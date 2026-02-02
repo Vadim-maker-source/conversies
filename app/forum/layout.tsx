@@ -7,6 +7,7 @@ import { getCurrentUser } from "../lib/api/user"
 import { useEffect, useState, Suspense } from "react"
 import { User } from "../lib/types"
 import Snowfall from "@/components/Snowfall"
+import { GlobalNotifications } from "@/components/GlobalNotifications"
 
 const ForumLayoutContent = ({ children }: { children: React.ReactNode }) => {
 
@@ -74,6 +75,7 @@ const ForumLayoutContent = ({ children }: { children: React.ReactNode }) => {
         }}
       >
         {isWinterSeason() && <Snowfall />}
+        <GlobalNotifications />
         {/* Главный контент */}
         <div className="relative">
           {children}

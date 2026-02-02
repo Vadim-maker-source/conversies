@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/app/lib/api/user'
 import { User } from '@/app/lib/types'
 import React, { useEffect, useState } from 'react'
 import EventModal from './EventModal'
+import Link from 'next/link'
 
 const Topbar = () => {
     const [user, setUser] = useState<User | null>(null)
@@ -77,10 +78,12 @@ const Topbar = () => {
                             Контакты
                             <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 transition-all duration-300 group-hover:w-full"></span>
                         </button>
+                        <Link href="/forum">
                         <button className="text-gray-300 text-lg hover:text-white transition-colors duration-200 cursor-pointer font-semibold relative group">
                             Форум
                             <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 transition-all duration-300 group-hover:w-full"></span>
                         </button>
+                        </Link>
                     </div>
 
                     {/* Правая часть - информация о пользователе */}

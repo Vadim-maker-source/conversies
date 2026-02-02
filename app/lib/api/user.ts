@@ -1111,3 +1111,94 @@ export async function quickLoginWithQRCode(token: string, deviceInfo: any, userE
     return { error: 'Ошибка при входе по QR-коду' }
   }
 }
+
+export async function updateUserBackground(backgroundImage: string) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return { error: 'Не авторизован' }
+    }
+    
+    const updatedUser = await prisma.user.update({
+      where: { 
+        id: Number(session.user.id)
+      },
+      data: {
+        backgroundImage
+      },
+      select: {
+        id: true,
+        name: true,
+        surname: true,
+        email: true,
+        phone: true,
+        isPremium: true,
+        backgroundImage: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    })
+
+    revalidatePath('/settings')
+    revalidatePath('/')
+    return { 
+      success: true, 
+      message: 'Фоновое изображение обновлено', 
+      user: updatedUser 
+    }
+  } catch (error) {
+    console.error('Error updating background:', error)
+    return { error: 'Ошибка при обновлении фонового изображения' }
+  }
+}
+
+export async function toggleNotificationMode() {
+  const currentUser = await getCurrentUser()
+  if (!currentUser) {
+    return { error: 'Не авторизован' }
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: currentUser.id },
+      select: { notificationMode: true }
+    })
+
+    // Переключаем между 'all' и 'none'
+    const newMode = user?.notificationMode === 'all' ? 'none' : 'all'
+    
+    await prisma.user.update({
+      where: { id: currentUser.id },
+      data: { notificationMode: newMode }
+    })
+
+    return { 
+      success: true, 
+      message: newMode === 'all' 
+        ? 'Уведомления включены' 
+        : 'Уведомления отключены',
+      notificationMode: newMode
+    }
+  } catch (error) {
+    console.error('Error toggling notification mode:', error)
+    return { error: 'Ошибка переключения уведомлений' }
+  }
+}
+
+// Функция для получения текущего режима
+export async function getNotificationMode() {
+  const currentUser = await getCurrentUser()
+  if (!currentUser) return null
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: currentUser.id },
+      select: { notificationMode: true }
+    })
+
+    return user?.notificationMode || 'all'
+  } catch (error) {
+    console.error('Error getting notification mode:', error)
+    return 'all'
+  }
+}

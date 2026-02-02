@@ -24,6 +24,7 @@ model User {
   coins            Int     @default(0)
   username         String? @unique
   place            String?
+  backgroundImage  String?
 
   lastSeen DateTime @default(now())
   isOnline Boolean  @default(false)
@@ -177,8 +178,8 @@ model Message {
   messageId         Int?
   originalMessageId Int?
 
-  imageUrl String?
-  fileUrl  String?
+  imageUrls String[] @default([])
+  fileUrls  String[] @default([])
 
   isEdited Boolean @default(false)
   isShared Boolean @default(false)
@@ -386,6 +387,7 @@ model Call {
   startTime DateTime  @default(now())
   endTime   DateTime?
   duration  Int? // в секундах
+  liveKitRoom  String?
 
   chat         Chat              @relation(fields: [chatId], references: [id])
   initiator    User              @relation("Initiator", fields: [initiatorId], references: [id])

@@ -9,19 +9,22 @@ interface PostActionsProps {
   isAuthor: boolean
   isPinned: boolean
   isLocked: boolean
+  isSubscribed: boolean
 }
 
-export default function PostActions({ postId, isAuthor, isPinned, isLocked }: PostActionsProps) {
+export default function PostActions({ postId, isAuthor, isPinned, isLocked, isSubscribed: initialIsSubscribed }: PostActionsProps) {
   const router = useRouter()
-  const [isSubscribed, setIsSubscribed] = useState(false)
+  const [isSubscribed, setIsSubscribed] = useState(initialIsSubscribed)
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSubscribe = async () => {
     setIsLoading(true)
     try {
       const result = await togglePostSubscription(postId)
-      if (result.success && result.subscribed !== undefined) {
-        setIsSubscribed(result.subscribed)
+      if (result.success) {
+        if (result.subscribed !== undefined) {
+          setIsSubscribed(result.subscribed)
+        }
       }
     } catch (error) {
       console.error('Error toggling subscription:', error)

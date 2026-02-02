@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef, JSX, Key, JSXElementConstructor, ReactElement, ReactNode, ReactPortal, Suspense } from 'react'
+import React, { useState, useEffect, useRef, Suspense, ReactElement } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { clearCache, getUserSettings, updatePassword, updateUserAvatar, updateUserSettings, buyPremium, getTwoFactorStatus, disableTwoFactor, enableTwoFactor, verifyTwoFactorEnable, addCoins, getLinkedDevices, removeDeviceSession, generatePublicLoginQRCode as generateDeviceLinkingToken, linkDeviceByToken, quickLoginWithQRCode, getCurrentUser } from '@/app/lib/api/user'
+import { clearCache, getUserSettings, updatePassword, updateUserAvatar, updateUserSettings, buyPremium, getTwoFactorStatus, disableTwoFactor, enableTwoFactor, verifyTwoFactorEnable, addCoins, getLinkedDevices, removeDeviceSession, generatePublicLoginQRCode as generateDeviceLinkingToken, linkDeviceByToken, quickLoginWithQRCode, getCurrentUser, updateUserBackground, getNotificationMode, toggleNotificationMode } from '@/app/lib/api/user'
 import { uploadAvatar } from '@/app/lib/api/chat'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { 
@@ -31,12 +31,13 @@ import {
   faMobileAlt,
   faRefresh,
   faQrcode,
-  faLink
+  faLink,
+  faImage,
+  faExclamationTriangle,
+  faBellSlash
 } from '@fortawesome/free-solid-svg-icons'
 import { GiftsSection } from '@/components/GiftsSection'
 import QRScanner from '@/components/QRScanner'
-
-import { AddressSuggestions } from 'react-dadata';
 import { AddressInput } from '@/components/address-input'
 
 interface CoinsSectionProps {
@@ -240,7 +241,7 @@ function ActionSelection({
 }: { 
   settings: any;
   onActionSelect: (action: string) => void;
-  getUserAvatar: () => JSX.Element;
+  getUserAvatar: () => ReactElement;
 }) {
   const actionButtons = [
     { id: 'edit-profile', icon: faEdit, label: 'Профиль', color: 'text-purple-400' },
@@ -267,22 +268,42 @@ function ActionSelection({
           <p className="text-gray-400 text-lg">Управление вашим аккаунтом</p>
         </div>
 
-        {/* Профиль пользователя */}
-        <div className="flex flex-col items-center mb-12">
-          {getUserAvatar()}
-          <div className="mt-6 text-center">
-            <h2 className="text-2xl font-semibold text-white">
-              {settings.name} {settings.surname}
-            </h2>
-            <p className="text-gray-400 mt-2">
-              {settings.email}
-            </p>
-            {settings.isPremium && (
-              <div className="inline-flex items-center space-x-2 mt-3 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full">
-                <FontAwesomeIcon icon={faCrown} className="w-4 h-4 text-white" />
-                <span className="text-white font-medium text-sm">PREMIUM</span>
+        {/* Профиль пользователя с фоном */}
+        <div className="relative mb-12 rounded-2xl overflow-hidden border border-gray-700">
+          {/* Фоновое изображение */}
+          {settings.backgroundImage && (
+            <div 
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url(${settings.backgroundImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: 'blur(8px)'
+              }}
+            >
+              <div className="absolute inset-0 bg-black/60"></div>
+            </div>
+          )}
+          
+          {/* Контент профиля */}
+          <div className="relative z-10 p-8">
+            <div className="flex flex-col items-center">
+              {getUserAvatar()}
+              <div className="mt-6 text-center">
+                <h2 className="text-2xl font-semibold text-white">
+                  {settings.name} {settings.surname}
+                </h2>
+                <p className="text-gray-300 mt-2">
+                  {settings.email}
+                </p>
+                {settings.isPremium && (
+                  <div className="inline-flex items-center space-x-2 mt-3 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full">
+                    <FontAwesomeIcon icon={faCrown} className="w-4 h-4 text-white" />
+                    <span className="text-white font-medium text-sm">PREMIUM</span>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
 
@@ -356,7 +377,14 @@ function ActionPage({
   qrCodeData,
   setShowQRScanner,
   handleQRScan,
-  showQRScanner
+  showQRScanner,
+  backgroundInputRef,
+  handleBackgroundClick,
+  handleBackgroundUpload,
+  handleRemoveBackground,
+  uploadingBackground,
+  handleToggleNotificationMode,
+  notificationMode
 }: any) {
   const renderActionContent = () => {
     switch (action) {
@@ -441,6 +469,202 @@ function ActionPage({
           </div>
         )
 
+        case 'notifications':
+  return (
+    <div className="max-w-2xl mx-auto w-full">
+      <h2 className="text-3xl font-bold text-white mb-8">Уведомления</h2>
+      
+      <div className="bg-black/40 rounded-xl p-8 backdrop-blur-sm border border-gray-700">
+        <div className="space-y-6">
+          {/* Основной переключатель */}
+          <div className="flex items-center justify-between p-6 bg-gray-800/50 rounded-xl border border-gray-600">
+            <div>
+              <div className="flex items-center space-x-3 mb-2">
+                <FontAwesomeIcon 
+                  icon={faBell} 
+                  className={`w-5 h-5 ${
+                    notificationMode === 'all' ? 'text-green-400' : 'text-gray-400'
+                  }`} 
+                />
+                <h3 className="text-white font-medium text-xl">
+                  {notificationMode === 'all' ? 'Уведомления включены' : 'Уведомления отключены'}
+                </h3>
+              </div>
+              <p className="text-gray-400 text-sm">
+                {notificationMode === 'all' 
+                  ? 'Вы будете получать уведомления о новых сообщениях, звонках и других событиях'
+                  : 'Уведомления полностью отключены. Вы не будете получать никаких оповещений'}
+              </p>
+            </div>
+            
+            {/* Toggle Switch */}
+            <button
+              onClick={handleToggleNotificationMode}
+              disabled={loading}
+              className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
+                notificationMode === 'all' ? 'bg-green-500' : 'bg-gray-600'
+              } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-lg ${
+                  notificationMode === 'all' ? 'translate-x-8' : 'translate-x-1'
+                } ${loading ? 'animate-pulse' : ''}`}
+              />
+            </button>
+          </div>
+
+          {/* Статус */}
+          <div className={`p-4 rounded-lg ${
+            notificationMode === 'all' 
+              ? 'bg-green-500/20 border border-green-500/30' 
+              : 'bg-gray-700/30 border border-gray-600'
+          }`}>
+            <div className="flex items-center space-x-3">
+              <div className={`w-2 h-2 rounded-full animate-pulse ${
+                notificationMode === 'all' ? 'bg-green-500' : 'bg-gray-500'
+              }`} />
+              <span className="text-white font-medium">
+                {notificationMode === 'all' 
+                  ? '✅ Уведомления активны' 
+                  : '🔇 Уведомления отключены'}
+              </span>
+            </div>
+            <p className="text-gray-300 text-sm mt-2">
+              {notificationMode === 'all'
+                ? 'Приложение может отправлять push-уведомления на это устройство'
+                : 'Приложение не будет отправлять никаких уведомлений'}
+            </p>
+          </div>
+
+          {/* Информация о режимах */}
+          <div className="space-y-4">
+            <div className="flex items-start space-x-4 p-4 bg-gray-800/30 rounded-lg">
+              <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <FontAwesomeIcon icon={faBell} className="w-5 h-5 text-green-400" />
+              </div>
+              <div>
+                <h4 className="text-white font-medium mb-1">Включено</h4>
+                <p className="text-gray-400 text-sm">
+                  Вы будете получать уведомления о: новых сообщениях, входящих звонках, 
+                  реакциях на ваши сообщения, новых участниках в чатах
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4 p-4 bg-gray-800/30 rounded-lg">
+              <div className="w-10 h-10 bg-gray-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <FontAwesomeIcon icon={faBellSlash} className="w-5 h-5 text-gray-400" />
+              </div>
+              <div>
+                <h4 className="text-white font-medium mb-1">Отключено</h4>
+                <p className="text-gray-400 text-sm">
+                  Вы не будете получать никаких уведомлений. Это может быть полезно 
+                  во время отдыха, в ночное время или при концентрации на работе
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Дополнительные настройки (только если включены) */}
+          {notificationMode === 'all' && (
+            <div className="pt-6 border-t border-gray-600">
+              <h4 className="text-white font-medium text-lg mb-4">Дополнительные настройки</h4>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-white font-medium">Звук уведомлений</div>
+                    <div className="text-gray-400 text-sm">
+                      Воспроизводить звук при получении уведомлений
+                    </div>
+                  </div>
+                  <div className="relative inline-block w-10 align-middle select-none">
+                    <input
+                      type="checkbox"
+                      name="sound"
+                      id="sound"
+                      className="sr-only"
+                      defaultChecked
+                    />
+                    <label
+                      htmlFor="sound"
+                      className="block overflow-hidden h-6 rounded-full bg-purple-500 cursor-pointer"
+                    >
+                      <span className="block h-6 w-6 rounded-full bg-white transform translate-x-6 transition-transform duration-200 ease-in shadow-lg"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-white font-medium">Вибрация</div>
+                    <div className="text-gray-400 text-sm">
+                      Вибрация при получении уведомлений (для мобильных устройств)
+                    </div>
+                  </div>
+                  <div className="relative inline-block w-10 align-middle select-none">
+                    <input
+                      type="checkbox"
+                      name="vibration"
+                      id="vibration"
+                      className="sr-only"
+                      defaultChecked
+                    />
+                    <label
+                      htmlFor="vibration"
+                      className="block overflow-hidden h-6 rounded-full bg-purple-500 cursor-pointer"
+                    >
+                      <span className="block h-6 w-6 rounded-full bg-white transform translate-x-6 transition-transform duration-200 ease-in shadow-lg"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-white font-medium">Ночной режим</div>
+                    <div className="text-gray-400 text-sm">
+                      Автоматически отключать уведомления с 23:00 до 8:00
+                    </div>
+                  </div>
+                  <div className="relative inline-block w-10 align-middle select-none">
+                    <input
+                      type="checkbox"
+                      name="nightMode"
+                      id="nightMode"
+                      className="sr-only"
+                    />
+                    <label
+                      htmlFor="nightMode"
+                      className="block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"
+                    >
+                      <span className="block h-6 w-6 rounded-full bg-white transform translate-x-1 transition-transform duration-200 ease-in shadow-lg"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Предупреждение */}
+          <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <FontAwesomeIcon icon={faExclamationTriangle} className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-yellow-300 text-sm font-medium">
+                  Важно: Даже при отключенных уведомлениях
+                </p>
+                <p className="text-yellow-200/80 text-sm mt-1">
+                  • Сообщения и звонки всё равно будут доступны в приложении<br/>
+                  • Входящие звонки будут отображаться на экране<br/>
+                  • Уведомления о важных событиях могут приходить в исключительных случаях
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
       case 'edit-profile':
         return (
           <div className="max-w-2xl mx-auto w-full">
@@ -449,6 +673,72 @@ function ActionPage({
             </div>
             
             <div className="bg-black/40 rounded-xl p-8 backdrop-blur-sm border border-gray-700">
+              {/* Секция фона профиля */}
+              <div className="relative mb-8 rounded-lg overflow-hidden border border-gray-600 group">
+                <div 
+                  className={`h-48 ${settings.backgroundImage ? '' : 'bg-gradient-to-r from-purple-900/30 to-blue-900/30'} relative`}
+                  style={settings.backgroundImage ? {
+                    backgroundImage: `url(${settings.backgroundImage})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                  } : {}}
+                >
+                  {/* Затемнение для лучшей видимости */}
+                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-all duration-200"></div>
+                  
+                  {/* Кнопка изменения фона */}
+                  <button
+                    type="button"
+                    onClick={handleBackgroundClick}
+                    className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full transition-all duration-200 opacity-0 group-hover:opacity-100 cursor-pointer border border-white/20"
+                    title="Изменить фон"
+                  >
+                    <FontAwesomeIcon icon={faImage} className="w-4 h-4" />
+                  </button>
+                  
+                  {/* Удаление фона (только если есть) */}
+                  {settings.backgroundImage && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveBackground}
+                      disabled={uploadingBackground}
+                      className="absolute top-4 right-16 bg-red-600/60 hover:bg-red-700/80 text-white p-2 rounded-full transition-all duration-200 opacity-0 group-hover:opacity-100 cursor-pointer border border-white/20 disabled:opacity-50"
+                      title="Удалить фон"
+                    >
+                      <FontAwesomeIcon icon={faTimes} className="w-4 h-4" />
+                    </button>
+                  )}
+                  
+                  {/* Загрузка при изменении */}
+                  {uploadingBackground && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                    </div>
+                  )}
+                  
+                  {/* Подпись */}
+                  <div className="absolute bottom-4 left-4">
+                    <p className="text-white/80 text-sm">
+                      {settings.backgroundImage ? 'Фоновое изображение' : 'Фоновое изображение не установлено'}
+                    </p>
+                    <p className="text-white/60 text-xs">
+                      Нажмите на иконку камеры для изменения
+                    </p>
+                  </div>
+                </div>
+                
+                <input
+                  type="file"
+                  ref={backgroundInputRef}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleBackgroundUpload(file)
+                  }}
+                  accept="image/*"
+                  className="hidden"
+                />
+              </div>
+              
               {/* Avatar Section */}
               <div className="flex items-center space-x-6 mb-8">
                 <div className="relative">
@@ -568,11 +858,11 @@ function ActionPage({
                     onChange={(e) => setSettings((prev: any) => ({ ...prev, about: e.target.value }))}
                     className="w-full px-3 py-2 bg-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 border border-gray-600"
                     placeholder="Расскажите о себе"
-                    required
+                    rows={3}
                   />
               </div>
 
-              <div>
+              <div className="mb-6">
                   <label className="block text-white text-sm font-medium mb-2">
                     Имя пользователя
                   </label>
@@ -582,41 +872,40 @@ function ActionPage({
                     onChange={(e) => setSettings((prev: any) => ({ ...prev, username: e.target.value }))}
                     className="w-full px-3 py-2 bg-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 border border-gray-600"
                     placeholder="Введите имя пользователя"
-                    required
                   />
               </div>
 
-              <div>
-  <label className="block text-white text-sm font-medium mb-2">
-    Местоположение
-  </label>
-  
-  <AddressInput 
-    value={settings.placeData ? { 
-      value: settings.place, 
-      data: settings.placeData,
-      unrestricted_value: settings.place
-    } : null}
-    onChange={(suggestion) => {
-      if (suggestion) {
-        setSettings((prev: any) => ({
-          ...prev,
-          place: suggestion.value,
-          placeData: suggestion.data
-        }));
-      } else {
-        setSettings((prev: any) => ({
-          ...prev,
-          place: '',
-          placeData: null
-        }));
-      }
-    }}
-    placeholder="Введите город, адрес или страну"
-    className="w-full"
-    allowInternational={true}
-  />
-</div>
+              <div className="mb-6">
+                <label className="block text-white text-sm font-medium mb-2">
+                  Местоположение
+                </label>
+                
+                <AddressInput 
+                  value={settings.placeData ? { 
+                    value: settings.place, 
+                    data: settings.placeData,
+                    unrestricted_value: settings.place
+                  } : null}
+                  onChange={(suggestion) => {
+                    if (suggestion) {
+                      setSettings((prev: any) => ({
+                        ...prev,
+                        place: suggestion.value,
+                        placeData: suggestion.data
+                      }));
+                    } else {
+                      setSettings((prev: any) => ({
+                        ...prev,
+                        place: '',
+                        placeData: null
+                      }));
+                    }
+                  }}
+                  placeholder="Введите город, адрес или страну"
+                  className="w-full"
+                  allowInternational={true}
+                />
+              </div>
 
               <button
                 onClick={onUpdateProfile}
@@ -781,90 +1070,90 @@ function ActionPage({
           </div>
         )
 
-        case 'present':
-  return (
-    <GiftsSection 
-      settings={settings}
-      onBack={onBack}
-      message={message}
-      loading={loading}
-    />
-  )
+      case 'present':
+        return (
+          <GiftsSection 
+            settings={settings}
+            onBack={onBack}
+            message={message}
+            loading={loading}
+          />
+        )
 
-  case 'coins':
-  return (
-    <CoinsSection 
-      settings={settings}
-      onBack={onBack}
-      message={message}
-      loading={loading}
-      onAddCoins={handleAddCoins}
-    />
-  )
+      case 'coins':
+        return (
+          <CoinsSection 
+            settings={settings}
+            onBack={onBack}
+            message={message}
+            loading={loading}
+            onAddCoins={handleAddCoins}
+          />
+        )
 
-  case 'link-devices':
-  return (
-    <div className="max-w-4xl mx-auto w-full">
-      <h2 className="text-3xl font-bold text-white mb-8">Связать устройства</h2>
-      
-      <div className="bg-black/40 rounded-xl p-8 backdrop-blur-sm border border-gray-700">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FontAwesomeIcon icon={faCamera} className="w-10 h-10 text-white" />
+      case 'link-devices':
+        return (
+          <div className="max-w-4xl mx-auto w-full">
+            <h2 className="text-3xl font-bold text-white mb-8">Связать устройства</h2>
+            
+            <div className="bg-black/40 rounded-xl p-8 backdrop-blur-sm border border-gray-700">
+              <div className="text-center mb-8">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FontAwesomeIcon icon={faCamera} className="w-10 h-10 text-white" />
+                </div>
+                <h3 className="text-white text-2xl font-bold mb-2">Сканирование QR-кода</h3>
+                <p className="text-gray-400 text-lg">
+                  Отсканируйте QR-код с другого устройства для связывания
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                <button
+                  onClick={() => setShowQRScanner(true)}
+                  className="w-full bg-green-500 text-white py-4 px-6 rounded-lg hover:bg-green-600 transition-colors font-medium text-lg flex items-center justify-center space-x-3"
+                >
+                  <FontAwesomeIcon icon={faCamera} className="w-6 h-6" />
+                  <span>Сканировать QR-код</span>
+                </button>
+
+                <div className="space-y-3 text-sm text-gray-300">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      1
+                    </div>
+                    <span>Откройте Conversies на другом устройстве</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      2
+                    </div>
+                    <span>Перейдите на страницу входа</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      3
+                    </div>
+                    <span>Нажмите "Сгенерировать QR-код"</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      4
+                    </div>
+                    <span>Наведите камеру на QR-код</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Компонент сканирования */}
+            {showQRScanner && (
+              <QRScanner
+                onScan={handleQRScan}
+                onClose={() => setShowQRScanner(false)}
+              />
+            )}
           </div>
-          <h3 className="text-white text-2xl font-bold mb-2">Сканирование QR-кода</h3>
-          <p className="text-gray-400 text-lg">
-            Отсканируйте QR-код с другого устройства для связывания
-          </p>
-        </div>
-
-        <div className="space-y-6">
-          <button
-            onClick={() => setShowQRScanner(true)}
-            className="w-full bg-green-500 text-white py-4 px-6 rounded-lg hover:bg-green-600 transition-colors font-medium text-lg flex items-center justify-center space-x-3"
-          >
-            <FontAwesomeIcon icon={faCamera} className="w-6 h-6" />
-            <span>Сканировать QR-код</span>
-          </button>
-
-          <div className="space-y-3 text-sm text-gray-300">
-            <div className="flex items-center space-x-3">
-              <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                1
-              </div>
-              <span>Откройте Conversies на другом устройстве</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                2
-              </div>
-              <span>Перейдите на страницу входа</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                3
-              </div>
-              <span>Нажмите "Сгенерировать QR-код"</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                4
-              </div>
-              <span>Наведите камеру на QR-код</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Компонент сканирования */}
-      {showQRScanner && (
-        <QRScanner
-          onScan={handleQRScan}
-          onClose={() => setShowQRScanner(false)}
-        />
-      )}
-    </div>
-  )
+        )
 
       default:
         return (
@@ -932,10 +1221,12 @@ function SettingsContent() {
     surname: '',
     about: '',
     avatar: '',
+    backgroundImage: '',
     isPremium: false,
     coins: 0,
     username: '',
     place: '',
+    placeData: null
   })
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -948,112 +1239,26 @@ function SettingsContent() {
   const [message, setMessage] = useState('')
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [uploadingBackground, setUploadingBackground] = useState(false)
   const [showClearCacheModal, setShowClearCacheModal] = useState(false)
   const [currentAction, setCurrentAction] = useState<string | null>(null)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const backgroundInputRef = useRef<HTMLInputElement>(null)
   const avatarMenuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const [twoFactorStatus, setTwoFactorStatus] = useState<any>(null)
-const [showTwoFactorModal, setShowTwoFactorModal] = useState(false)
-const [twoFactorCode, setTwoFactorCode] = useState('')
-
-const handleAddCoins = async (coinsAmount: number) => {
-  setLoading(true)
-  setMessage('')
-
-  try {
-    const result = await addCoins(coinsAmount)
-    if (result.error) {
-      setMessage(result.error)
-    } else {
-      setMessage(`🎉 Баланс успешно пополнен на ${coinsAmount} монет!`)
-      const updatedSettings = await getUserSettings()
-      if (updatedSettings) {
-        setSettings({name: updatedSettings.name || '',
-          surname: updatedSettings.surname || '',
-          about: updatedSettings.bio || '',
-          avatar: updatedSettings.avatar || '',
-          isPremium: updatedSettings.isPremium || false,
-          coins: updatedSettings.coins || 0,
-          username: updatedSettings.username || '',
-          place: updatedSettings.place || ''
-        })
-      }
-    }
-  } catch (error) {
-    setMessage('Ошибка при пополнении баланса')
-  } finally {
-    setLoading(false)
-  }
-}
-
-const handleEnableTwoFactor = async () => {
-  setLoading(true)
-  try {
-    const result = await enableTwoFactor()
-    if (result.error) {
-      setMessage(result.error)
-    } else {
-      setMessage(result.message!)
-      setShowTwoFactorModal(true)
-    }
-  } catch (error) {
-    setMessage('Ошибка при настройке 2FA')
-  } finally {
-    setLoading(false)
-  }
-}
-
-const handleVerifyTwoFactor = async () => {
-  setLoading(true)
-  try {
-    const result = await verifyTwoFactorEnable(twoFactorCode)
-    if (result.error) {
-      setMessage(result.error)
-    } else {
-      setMessage(result.message!)
-      setTwoFactorStatus({ twoFactorEnabled: true })
-      setShowTwoFactorModal(false)
-      setTwoFactorCode('')
-    }
-  } catch (error) {
-    setMessage('Ошибка при подтверждении кода')
-  } finally {
-    setLoading(false)
-  }
-}
-
-const handleDisableTwoFactor = async () => {
-  setLoading(true)
-  try {
-    const result = await disableTwoFactor()
-    if (result.error) {
-      setMessage(result.error)
-    } else {
-      setMessage(result.message!)
-      setTwoFactorStatus({ twoFactorEnabled: false })
-    }
-  } catch (error) {
-    setMessage('Ошибка при отключении 2FA')
-  } finally {
-    setLoading(false)
-  }
-}
-
-useEffect(() => {
-  loadTwoFactorStatus()
-}, [])
-
-const loadTwoFactorStatus = async () => {
-  const status = await getTwoFactorStatus()
-  setTwoFactorStatus(status)
-}
+  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false)
+  const [twoFactorCode, setTwoFactorCode] = useState('')
+  const [linkedDevices, setLinkedDevices] = useState<any[]>([])
+  const [qrCodeData, setQrCodeData] = useState('')
+  const [showQRScanner, setShowQRScanner] = useState(false)
 
   useEffect(() => {
     loadSettings()
+    loadTwoFactorStatus()
     
     const action = searchParams.get('action')
     if (action) {
@@ -1082,19 +1287,26 @@ const loadTwoFactorStatus = async () => {
       const userSettings = await getUserSettings()
       if (userSettings) {
         setSettings({
-          name: String(userSettings.name) || String(''),
+          name: String(userSettings.name) || '',
           surname: userSettings.surname || '',
           about: String(userSettings.bio) || '',
           avatar: userSettings.avatar || '',
+          backgroundImage: userSettings.backgroundImage || '',
           isPremium: userSettings.isPremium || false,
-          coins: Number(userSettings.coins),
+          coins: Number(userSettings.coins) || 0,
           username: userSettings.username || '',
-          place: userSettings.place || ''
+          place: userSettings.place || '',
+          placeData: null
         })
       }
     } catch (error) {
       console.error('Error loading settings:', error)
     }
+  }
+
+  const loadTwoFactorStatus = async () => {
+    const status = await getTwoFactorStatus()
+    setTwoFactorStatus(status)
   }
 
   const handleActionSelect = (action: string) => {
@@ -1133,99 +1345,91 @@ const loadTwoFactorStatus = async () => {
     }
   }
 
-  const [linkedDevices, setLinkedDevices] = useState<any[]>([])
-const [qrCodeData, setQrCodeData] = useState('')
+  const handleAddCoins = async (coinsAmount: number) => {
+    setLoading(true)
+    setMessage('')
 
-const [showQRScanner, setShowQRScanner] = useState(false)
-
-const handleQRScan = async (scannedData: string) => {
-  setLoading(true);
-  setMessage('');
-  
-  try {
-    const data = JSON.parse(scannedData);
-    
-    if (data.type === 'quick_login') {
-      const currentUser = await getCurrentUser();
-      
-      if (!currentUser) {
-        setMessage('Вы не авторизованы');
-        return;
-      }
-
-      const result = await quickLoginWithQRCode(data.token, {
-        deviceInfo: {
-          browser: navigator.userAgent,
-          platform: navigator.platform,
-          type: 'web'
-        },
-        userAgent: navigator.userAgent
-      }, String(currentUser.email));
-      
+    try {
+      const result = await addCoins(coinsAmount)
       if (result.error) {
-        setMessage(result.error);
+        setMessage(result.error)
       } else {
-        setMessage('Устройство успешно связано!');
-        setShowQRScanner(false);
-        
-        router.refresh();
+        setMessage(`🎉 Баланс успешно пополнен на ${coinsAmount} монет!`)
+        const updatedSettings = await getUserSettings()
+        if (updatedSettings) {
+          setSettings({
+            name: updatedSettings.name || '',
+            surname: updatedSettings.surname || '',
+            about: updatedSettings.bio || '',
+            avatar: updatedSettings.avatar || '',
+            backgroundImage: updatedSettings.backgroundImage || '',
+            isPremium: updatedSettings.isPremium || false,
+            coins: updatedSettings.coins || 0,
+            username: updatedSettings.username || '',
+            place: updatedSettings.place || '',
+            placeData: null
+          })
+        }
       }
-    } else {
-      setMessage('Неизвестный тип QR-кода');
+    } catch (error) {
+      setMessage('Ошибка при пополнении баланса')
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    setMessage('Ошибка при обработке QR-кода');
-    console.error('QR scan error:', error);
-  } finally {
-    setLoading(false);
   }
-};
 
-const generateLinkingQRCode = async () => {
-  setLoading(true)
-  setMessage('')
-  
-  try {
-    const result = await generateDeviceLinkingToken()
-    if (result.error) {
-      setMessage(result.error)
-    } else {
-      setMessage('QR-код сгенерирован! Токен действителен 5 минут.')
-      setQrCodeData(JSON.stringify({
-        type: 'device_linking',
-        token: result.token,
-        expiresAt: result.expiresAt
-      }))
+  const handleEnableTwoFactor = async () => {
+    setLoading(true)
+    try {
+      const result = await enableTwoFactor()
+      if (result.error) {
+        setMessage(result.error)
+      } else {
+        setMessage(result.message!)
+        setShowTwoFactorModal(true)
+      }
+    } catch (error) {
+      setMessage('Ошибка при настройке 2FA')
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    setMessage('Ошибка при генерации QR-кода')
-  } finally {
-    setLoading(false)
   }
-}
 
-const loadLinkedDevices = async () => {
-  const result = await getLinkedDevices()
-  if (result.success) {
-    setLinkedDevices(result.devices || [])
+  const handleVerifyTwoFactor = async () => {
+    setLoading(true)
+    try {
+      const result = await verifyTwoFactorEnable(twoFactorCode)
+      if (result.error) {
+        setMessage(result.error)
+      } else {
+        setMessage(result.message!)
+        setTwoFactorStatus({ twoFactorEnabled: true })
+        setShowTwoFactorModal(false)
+        setTwoFactorCode('')
+      }
+    } catch (error) {
+      setMessage('Ошибка при подтверждении кода')
+    } finally {
+      setLoading(false)
+    }
   }
-}
 
-const handleRemoveDevice = async (deviceId: string) => {
-  const result = await removeDeviceSession(deviceId)
-  if (result.success) {
-    setMessage('Устройство успешно отвязано')
-    loadLinkedDevices()
-  } else {
-    setMessage(result.error || 'Ошибка при отвязывании устройства')
+  const handleDisableTwoFactor = async () => {
+    setLoading(true)
+    try {
+      const result = await disableTwoFactor()
+      if (result.error) {
+        setMessage(result.error)
+      } else {
+        setMessage(result.message!)
+        setTwoFactorStatus({ twoFactorEnabled: false })
+      }
+    } catch (error) {
+      setMessage('Ошибка при отключении 2FA')
+    } finally {
+      setLoading(false)
+    }
   }
-}
-
-useEffect(() => {
-  if (currentAction === 'link-devices') {
-    loadLinkedDevices()
-  }
-}, [currentAction])
 
   const handleBuyPremium = async () => {
     setPremiumLoading(true)
@@ -1300,6 +1504,50 @@ useEffect(() => {
     }
   }
 
+  const handleBackgroundClick = () => {
+    backgroundInputRef.current?.click()
+  }
+
+  const handleBackgroundUpload = async (file: File) => {
+    setUploadingBackground(true)
+    try {
+      const uploadResult = await uploadAvatar(file)
+      const result = await updateUserBackground(uploadResult.url)
+      if (result.error) {
+        setMessage(result.error)
+      } else {
+        setMessage('Фоновое изображение успешно обновлено!')
+        setSettings(prev => ({ ...prev, backgroundImage: uploadResult.url }))
+      }
+    } catch (error) {
+      console.error('Error uploading background:', error)
+      setMessage('Ошибка при загрузке фонового изображения')
+    } finally {
+      setUploadingBackground(false)
+      if (backgroundInputRef.current) {
+        backgroundInputRef.current.value = ''
+      }
+    }
+  }
+
+  const handleRemoveBackground = async () => {
+    setUploadingBackground(true)
+    try {
+      const result = await updateUserBackground('')
+      if (result.error) {
+        setMessage(result.error)
+      } else {
+        setMessage('Фоновое изображение успешно удалено!')
+        setSettings(prev => ({ ...prev, backgroundImage: '' }))
+      }
+    } catch (error) {
+      console.error('Error removing background:', error)
+      setMessage('Ошибка при удалении фонового изображения')
+    } finally {
+      setUploadingBackground(false)
+    }
+  }
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setPasswordLoading(true)
@@ -1335,6 +1583,95 @@ useEffect(() => {
     setShowClearCacheModal(false)
   }
 
+  const handleQRScan = async (scannedData: string) => {
+    setLoading(true);
+    setMessage('');
+    
+    try {
+      const data = JSON.parse(scannedData);
+      
+      if (data.type === 'quick_login') {
+        const currentUser = await getCurrentUser();
+        
+        if (!currentUser) {
+          setMessage('Вы не авторизованы');
+          return;
+        }
+
+        const result = await quickLoginWithQRCode(data.token, {
+          deviceInfo: {
+            browser: navigator.userAgent,
+            platform: navigator.platform,
+            type: 'web'
+          },
+          userAgent: navigator.userAgent
+        }, String(currentUser.email));
+        
+        if (result.error) {
+          setMessage(result.error);
+        } else {
+          setMessage('Устройство успешно связано!');
+          setShowQRScanner(false);
+          
+          router.refresh();
+        }
+      } else {
+        setMessage('Неизвестный тип QR-кода');
+      }
+    } catch (error) {
+      setMessage('Ошибка при обработке QR-кода');
+      console.error('QR scan error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateLinkingQRCode = async () => {
+    setLoading(true)
+    setMessage('')
+    
+    try {
+      const result = await generateDeviceLinkingToken()
+      if (result.error) {
+        setMessage(result.error)
+      } else {
+        setMessage('QR-код сгенерирован! Токен действителен 5 минут.')
+        setQrCodeData(JSON.stringify({
+          type: 'device_linking',
+          token: result.token,
+          expiresAt: result.expiresAt
+        }))
+      }
+    } catch (error) {
+      setMessage('Ошибка при генерации QR-кода')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadLinkedDevices = async () => {
+    const result = await getLinkedDevices()
+    if (result.success) {
+      setLinkedDevices(result.devices || [])
+    }
+  }
+
+  const handleRemoveDevice = async (deviceId: string) => {
+    const result = await removeDeviceSession(deviceId)
+    if (result.success) {
+      setMessage('Устройство успешно отвязано')
+      loadLinkedDevices()
+    } else {
+      setMessage(result.error || 'Ошибка при отвязывании устройства')
+    }
+  }
+
+  useEffect(() => {
+    if (currentAction === 'link-devices') {
+      loadLinkedDevices()
+    }
+  }, [currentAction])
+
   const getUserAvatar = () => {
     if (settings.avatar) {
       return (
@@ -1351,6 +1688,52 @@ useEffect(() => {
       </div>
     )
   }
+
+  const [notificationMode, setNotificationMode] = useState<'all' | 'none'>('all')
+
+// Функция загрузки текущего режима
+const loadNotificationMode = async () => {
+  try {
+    const mode = await getNotificationMode()
+    if (mode) {
+      setNotificationMode(mode as 'all' | 'none')
+    }
+  } catch (error) {
+    console.error('Error loading notification mode:', error)
+  }
+}
+
+// Функция переключения режима
+const handleToggleNotificationMode = async () => {
+  setLoading(true)
+  setMessage('')
+  
+  try {
+    const result = await toggleNotificationMode()
+    if (result.error) {
+      setMessage(result.error)
+    } else {
+      setMessage(result.message!)
+      setNotificationMode(result.notificationMode as 'all' | 'none')
+    }
+  } catch (error) {
+    setMessage('Ошибка при переключении уведомлений')
+  } finally {
+    setLoading(false)
+  }
+}
+
+// Добавьте вызов loadNotificationMode в useEffect
+useEffect(() => {
+  loadSettings()
+  loadTwoFactorStatus()
+  loadNotificationMode() // Добавьте эту строку
+  
+  const action = searchParams.get('action')
+  if (action) {
+    setCurrentAction(action)
+  }
+}, [searchParams])
 
   if (currentAction) {
     return (
@@ -1370,6 +1753,7 @@ useEffect(() => {
           onClearCache={handleClearCache}
           onBuyPremium={handleBuyPremium}
           fileInputRef={fileInputRef}
+          backgroundInputRef={backgroundInputRef}
           showAvatarMenu={showAvatarMenu}
           setShowAvatarMenu={setShowAvatarMenu}
           onAvatarClick={handleAvatarClick}
@@ -1377,6 +1761,7 @@ useEffect(() => {
           onFileInputChange={handleFileInputChange}
           onRemoveAvatar={handleRemoveAvatar}
           uploadingAvatar={uploadingAvatar}
+          uploadingBackground={uploadingBackground}
           avatarMenuRef={avatarMenuRef}
           passwordForm={passwordForm}
           setPasswordForm={setPasswordForm}
@@ -1397,6 +1782,11 @@ useEffect(() => {
           setShowQRScanner={setShowQRScanner}
           showQRScanner={showQRScanner}
           handleQRScan={handleQRScan}
+          handleBackgroundClick={handleBackgroundClick}
+          handleBackgroundUpload={handleBackgroundUpload}
+          handleRemoveBackground={handleRemoveBackground}
+          handleToggleNotificationMode={handleToggleNotificationMode}
+          notificationMode={notificationMode}
         />
         <ClearCacheModal 
           isOpen={showClearCacheModal}

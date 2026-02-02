@@ -1,9 +1,9 @@
 'use client'
 
-import { uploadFile, updateMessage, deleteMessage, forwardMessage, getUserChats, addReaction, removeReaction, pinMessage, unpinMessage, getPinnedMessage, markMessageAsRead, markAllMessagesAsRead, searchMessagesInChat, getLinkPreview, sendVoiceMessage, createPrivateChat } from '@/app/lib/api/chat'
-import { User, ChatWithDetails, Message } from '@/app/lib/types'
+import { uploadFile, updateMessage, deleteMessage, forwardMessage, getUserChats, addReaction, removeReaction, pinMessage, unpinMessage, getPinnedMessage, markMessageAsRead, markAllMessagesAsRead, searchMessagesInChat, getLinkPreview, sendVoiceMessage, createPrivateChat, getChatInfo } from '@/app/lib/api/chat'
+import { User, ChatWithDetails, Message, Chat } from '@/app/lib/types'
 import { useChatMessages } from '@/hooks/useChatMessages'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faFaceSmile, faPaperclip, faPaperPlane, faTrash, faDownload, faReply, faShare, faEdit, faThumbTack, faMicrophone, faStop, faPause, faPlay, faStickyNote, faVideo, faPhone } from '@fortawesome/free-solid-svg-icons'
 import Link from 'next/link'
@@ -25,11 +25,25 @@ import { Search } from './animate-ui/icons/search'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { useChatUsersStatus, useUserStatus } from '@/hooks/useOnlineStatus'
 import EmojiPicker, { Theme, EmojiStyle } from 'emoji-picker-react';
-import { initiateCall, getActiveCallInChat, endCall, CallData, declineCall, acceptCall } from '@/app/lib/api/calls'
-import useCallWebRTC from '@/hooks/useWebRTC'
-import CallNotification from './CallNotification'
-import CallInterface from './CallInterface'
-import { getPusherClient, pusherClient } from '@/app/lib/pusher-client'
+import { initiateCall, getActiveCallInChat, endCall, declineCall, acceptCall, CallData } from '@/app/lib/api/calls'
+import { toast } from 'sonner'
+
+import * as chatApi from '@/app/lib/api/chat'
+import { CallInterface } from './CallInterface'
+import { useCall } from '@/video/useCall'
+import { useRouter } from 'next/navigation'
+
+interface LiveKitData {
+  token: string;
+  roomName: string;
+  serverUrl: string;
+}
+
+interface DragDropState {
+  isDragging: boolean;
+  files: File[];
+  position: { x: number; y: number };
+}
 
 interface PendingFile {
   id: string
@@ -603,7 +617,8 @@ function VoiceMessage({
   const [duration, setDuration] = useState(0)
   const audioRef = useRef<HTMLAudioElement>(null)
 
-  const voiceUrl = message.fileUrl
+  // Используем первый файл из массива
+  const voiceUrl = message.fileUrls && message.fileUrls.length > 0 ? message.fileUrls[0] : null
 
   useEffect(() => {
     const audio = audioRef.current
@@ -622,11 +637,11 @@ function VoiceMessage({
       audio.removeEventListener('loadedmetadata', updateDuration)
       audio.removeEventListener('ended', handleEnd)
     }
-  }, [])
+  }, [voiceUrl])
 
   const togglePlayback = () => {
     const audio = audioRef.current
-    if (!audio) return
+    if (!audio || !voiceUrl) return
 
     if (isPlaying) {
       audio.pause()
@@ -723,8 +738,17 @@ function VoiceRecorder({
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream)
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      })
+      
+      // Пробуем использовать WAV формат если поддерживается
+      const options = { mimeType: 'audio/webm;codecs=opus' }
+      const mediaRecorder = new MediaRecorder(stream, options)
       mediaRecorderRef.current = mediaRecorder
       chunksRef.current = []
 
@@ -745,7 +769,6 @@ function VoiceRecorder({
           isRecording: false
         }))
 
-        // Освобождаем поток
         stream.getTracks().forEach(track => track.stop())
       }
 
@@ -754,7 +777,8 @@ function VoiceRecorder({
         ...prev,
         isRecording: true,
         timer: 0,
-        duration: 0
+        duration: 0,
+        stream
       }))
 
       // Таймер
@@ -768,7 +792,7 @@ function VoiceRecorder({
 
     } catch (error) {
       console.error('Error starting recording:', error)
-      alert('Не удалось получить доступ к микрофону')
+      toast.error('Не удалось получить доступ к микрофону')
     }
   }
 
@@ -812,93 +836,96 @@ function VoiceRecorder({
   }
 
   return (
-    <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-3 mb-3">
-      {!recording.audioUrl ? (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            {!recording.isRecording ? (
+    <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-4 mb-3">
+      <div className="space-y-4">
+        {recording.isRecording ? (
+          <>
+            <div className="text-center mb-3">
+              <div className="text-red-400 font-mono text-2xl font-bold mb-2">
+                {formatTime(recording.timer)}
+              </div>
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse mx-auto mb-2" />
+              <p className="text-red-300 text-sm">Запись... (макс. 5 минут)</p>
+            </div>
+          </>
+        ) : recording.audioUrl ? (
+          <div className="space-y-4">
+            <div className="text-center">
+              <p className="text-gray-300 text-sm mb-2">
+                Длительность: {formatTime(recording.duration)}
+              </p>
+              <audio 
+                controls 
+                src={recording.audioUrl}
+                className="w-full"
+                preload="metadata"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center mb-4">
+              <FontAwesomeIcon icon={faMicrophone} className="w-8 h-8 text-white" />
+            </div>
+            <p className="text-gray-300 text-lg font-medium mb-2">
+              Голосовое сообщение
+            </p>
+            <p className="text-gray-400 text-sm">
+              Нажмите кнопку ниже, чтобы начать запись
+            </p>
+          </div>
+        )}
+        
+        <div className="flex items-center justify-center space-x-4">
+          {!recording.audioUrl ? (
+            !recording.isRecording ? (
               <button
                 onClick={startRecording}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                className="flex items-center space-x-3 px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg font-medium"
               >
-                <FontAwesomeIcon icon={faMicrophone} className="w-4 h-4" />
-                <span className="font-medium">Начать запись</span>
+                <FontAwesomeIcon icon={faMicrophone} className="w-5 h-5" />
+                <span>Начать запись</span>
               </button>
             ) : (
               <button
                 onClick={stopRecording}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                className="flex items-center space-x-3 px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg font-medium"
               >
-                <FontAwesomeIcon icon={faStop} className="w-4 h-4" />
-                <span className="font-medium">Остановить</span>
+                <FontAwesomeIcon icon={faStop} className="w-5 h-5" />
+                <span>Остановить</span>
               </button>
-            )}
-            
-            {recording.isRecording && (
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-                <span className="text-red-400 font-mono text-lg font-bold">
-                  {formatTime(recording.timer)}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center space-x-2">
-            {recording.isRecording && (
-              <div className="text-sm text-red-300">
-                Запись...
-              </div>
-            )}
-            <button
-              onClick={onCancel}
-              className="px-3 py-1 text-gray-300 hover:text-white transition-colors text-sm"
-            >
-              Отмена
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <audio 
-              controls 
-              src={recording.audioUrl}
-              className="w-32 h-8"
-            />
-            <span className="text-sm text-gray-300">
-              {formatTime(recording.duration)}
-            </span>
-          </div>
+            )
+          ) : (
+            <>
+              <button
+                onClick={sendRecording}
+                className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+              >
+                Отправить
+              </button>
+              <button
+                onClick={() => {
+                  cleanup()
+                  startRecording()
+                }}
+                className="px-5 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+              >
+                Перезаписать
+              </button>
+            </>
+          )}
           
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={sendRecording}
-              className="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
-            >
-              Отправить
-            </button>
-            <button
-              onClick={() => {
-                cleanup()
-                startRecording()
-              }}
-              className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-            >
-              Перезаписать
-            </button>
-            <button
-              onClick={() => {
-                cleanup()
-                onCancel()
-              }}
-              className="px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
-            >
-              Отмена
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              cleanup()
+              onCancel()
+            }}
+            className="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
+          >
+            Отмена
+          </button>
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -1002,8 +1029,8 @@ function PinnedMessage({
   const { data: pinnedMessage, isLoading: isPinnedLoading } = useQuery({
     queryKey: ['pinned-message', chatId],
     queryFn: () => getPinnedMessage(chatId),
-    refetchInterval: 3000,
-    staleTime: 1000,
+    refetchInterval: false,
+    staleTime: 60000,
   })
 
   const canManagePinned = chatInfo.members.some(member => 
@@ -1123,7 +1150,8 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
   const [videoProgress, setVideoProgress] = useState(0)
   const videoRef = useRef<HTMLVideoElement>(null)
   
-  const fileUrls = message.fileUrl ? [message.fileUrl] : (message.fileUrls || [])
+  const fileUrls = message.fileUrls || []
+  const imageUrls = message.imageUrls || []
   const isVideoMessage = message.content === '🎥 Видеосообщение'
 
   useEffect(() => {
@@ -1174,10 +1202,11 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
     return "h-24"
   }
 
-  if (fileUrls.length === 0) return null
+  if (imageUrls.length === 0 && fileUrls.length === 0) return null
 
-  const imageUrls = fileUrls.filter(url => url.match(/\.(jpg|jpeg|png|gif|webp|avif)$/i))
-  const videoUrls = fileUrls.filter(url => url.match(/\.(mp4|mov|avi|webm|mkv)$/i))
+  // Фильтруем изображения и видео отдельно
+  const imageFiles = imageUrls // Только из imageUrls
+  const videoFiles = fileUrls.filter(url => url.match(/\.(mp4|mov|avi|webm|mkv)$/i))
 
   // Компонент для кругового прогресс-бара видео
   const CircularVideoProgress = ({ progress, size = 60, strokeWidth = 3 }: { progress: number; size?: number; strokeWidth?: number }) => {
@@ -1216,12 +1245,13 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
   return (
     <>
       <div className="mt-2 space-y-3">
-        {imageUrls.length > 0 && (
+        {/* Отображение изображений из imageUrls */}
+        {imageFiles.length > 0 && (
           <div className="max-w-2xl">
-            <div className={`grid ${getGridClass(imageUrls.length)} gap-2`}>
-              {imageUrls.map((fileUrl, index) => (
+            <div className={`grid ${getGridClass(imageFiles.length)} gap-2`}>
+              {imageFiles.map((fileUrl, index) => (
                 <div 
-                  key={index}
+                  key={`image-${index}`}
                   className="relative cursor-pointer rounded-lg overflow-hidden border border-gray-300 bg-gray-100 group"
                   onClick={() => handleMediaClick(fileUrl, index)}
                 >
@@ -1229,7 +1259,7 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
                     <img 
                       src={fileUrl} 
                       alt={`Фото ${index + 1}`}
-                      className={`w-full object-cover ${getImageSize(imageUrls.length, index)}`}
+                      className={`w-full object-cover ${getImageSize(imageFiles.length, index)}`}
                       loading="lazy"
                     />
                     <button
@@ -1246,10 +1276,11 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
           </div>
         )}
 
-        {videoUrls.length > 0 && (
+        {/* Отображение видео из fileUrls */}
+        {videoFiles.length > 0 && (
           <div className="space-y-2 max-w-md">
-            {videoUrls.map((fileUrl, index) => (
-              <div key={index} className={`relative cursor-pointer overflow-hidden border border-gray-300 group ${
+            {videoFiles.map((fileUrl, index) => (
+              <div key={`video-${index}`} className={`relative cursor-pointer overflow-hidden border border-gray-300 group ${
                 isVideoMessage ? 'rounded-full w-48 h-48' : 'rounded-lg'
               }`}>
                 <video 
@@ -1259,7 +1290,7 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
                   controls
                   preload="metadata"
                   onPlay={handleVideoPlay}
-                  onClick={() => handleMediaClick(fileUrl, index)}
+                  onClick={() => handleMediaClick(fileUrl, index + imageFiles.length)}
                 >
                   Ваш браузер не поддерживает видео.
                 </video>
@@ -1282,6 +1313,7 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
         )}
       </div>
 
+      {/* Модальное окно для просмотра медиа */}
       {isModalOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
@@ -1301,7 +1333,9 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                const currentUrl = imageUrls[selectedMediaIndex] || videoUrls[selectedMediaIndex]
+                const currentUrl = selectedMediaIndex < imageFiles.length 
+                  ? imageFiles[selectedMediaIndex] 
+                  : videoFiles[selectedMediaIndex - imageFiles.length]
                 if (currentUrl) {
                   handleDownloadMedia(currentUrl, e)
                 }
@@ -1312,12 +1346,12 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
               <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
             </button>
             
-            {(imageUrls.length > 1 || videoUrls.length > 1) && (
+            {(imageFiles.length > 1 || videoFiles.length > 1) && (
               <>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    const totalMedia = imageUrls.length + videoUrls.length
+                    const totalMedia = imageFiles.length + videoFiles.length
                     setSelectedMediaIndex(prev => prev > 0 ? prev - 1 : totalMedia - 1)
                   }}
                   className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white text-2xl bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
@@ -1327,7 +1361,7 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    const totalMedia = imageUrls.length + videoUrls.length
+                    const totalMedia = imageFiles.length + videoFiles.length
                     setSelectedMediaIndex(prev => prev < totalMedia - 1 ? prev + 1 : 0)
                   }}
                   className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white text-2xl bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
@@ -1335,23 +1369,23 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
                   ›
                 </button>
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-50 px-3 py-1 rounded-full text-sm">
-                  {selectedMediaIndex + 1} / {imageUrls.length + videoUrls.length}
+                  {selectedMediaIndex + 1} / {imageFiles.length + videoFiles.length}
                 </div>
               </>
             )}
             
-            {imageUrls[selectedMediaIndex] && (
+            {selectedMediaIndex < imageFiles.length && imageFiles[selectedMediaIndex] && (
               <img 
-                src={imageUrls[selectedMediaIndex]} 
+                src={imageFiles[selectedMediaIndex]} 
                 alt="Просмотр"
                 className="max-w-full max-h-screen object-contain mx-auto"
               />
             )}
             
-            {videoUrls[selectedMediaIndex] && (
+            {selectedMediaIndex >= imageFiles.length && videoFiles[selectedMediaIndex - imageFiles.length] && (
               <div className={`relative ${isVideoMessage ? 'w-96 h-96 mx-auto rounded-full overflow-hidden' : ''}`}>
                 <video 
-                  src={videoUrls[selectedMediaIndex]}
+                  src={videoFiles[selectedMediaIndex - imageFiles.length]}
                   className={`${isVideoMessage ? 'w-full h-full object-cover rounded-full' : 'max-w-full max-h-screen mx-auto'}`}
                   controls
                   autoPlay
@@ -1916,7 +1950,8 @@ function MessageItem({
   pinnedMessage?: MessageWithFiles;
 }) {
   const isOwn = message.userId === currentUser.id
-  const fileUrls = message.fileUrl ? [message.fileUrl] : (message.fileUrls || [])
+  const fileUrls = message.fileUrls || []
+  const imageUrls = message.imageUrls || []
   const hasFiles = fileUrls.length > 0
   const isFileMessage = message.content && (
     message.content.includes('📎 Файлы:') || 
@@ -1924,8 +1959,10 @@ function MessageItem({
     message.content.startsWith('🎥')
   )
   const isSticker = message.imageUrl && message.imageUrl.includes('/stickers/')
-  const isVoiceMessage = message.fileUrl && message.fileUrl.match(/\.(mp3|wav|ogg|webm)$/i) && 
-                        !message.content && !message.imageUrl
+  const isVoiceMessage = fileUrls.length > 0 && 
+    fileUrls[0]?.match(/\.(mp3|wav|ogg|webm)$/i) && 
+    !message.content && 
+    !message.imageUrls?.length
 
   // Извлекаем ссылки из текста сообщения
   const { hasLinks, links, elements } = formatLinksInText(message.content || '')
@@ -2137,7 +2174,7 @@ function MessageItem({
                   : 'bg-black/40 text-white rounded-bl-none border border-purple-400/20'
               }`}
             >
-              {!isOwn && (
+              {(!isOwn && chatInfo?.type !== 'PRIVATE') && (
                 <p className="text-xs font-medium text-gray-100 mb-2 wrap-break-word">
                   {message.user.name} {message.user.surname}
                 </p>
@@ -2168,7 +2205,7 @@ function MessageItem({
                         key={index}
                         className="flex items-center w-full space-x-2 px-3 py-1 bg-purple-500/40 rounded-lg hover:bg-purple-500/30 transition-colors text-sm"
                       >
-                        <a 
+                        <a
                           href={url} 
                           target="_blank" 
                           rel="noopener noreferrer"
@@ -2521,7 +2558,7 @@ function ForwardMessageModal({
                 : message.content
               }
             </p>
-            {message.fileUrl && (
+            {message.fileUrls && (
               <p className="text-xs text-gray-500 mt-1">
                 📎 Прикреплен файл
               </p>
@@ -2643,6 +2680,8 @@ export default function ChatClient({ currentUser, chatInfo }: ChatClientProps) {
   const [autoScroll, setAutoScroll] = useState(true)
   const queryClient = useQueryClient()
 
+  const router = useRouter();
+
   const [isSearchMode, setIsSearchMode] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<MessageWithFiles[]>([])
@@ -2668,409 +2707,52 @@ const [microphoneAnimation, setMicrophoneAnimation] = useState<MicrophoneAnimati
   opacity: 1
 })
 
-const [activeCall, setActiveCall] = useState<CallData | null>(null)
 const [incomingCall, setIncomingCall] = useState<CallData | null>(null)
-const [isCallActive, setIsCallActive] = useState(false)
-const [callSubscription, setCallSubscription] = useState<any>(null)
 
-const {
-  localStream,
-  remoteStreams,
-  isAudioEnabled,
-  isVideoEnabled,
-  isScreenSharing,
-  participants: webRTCParticipants, // Переименуем, чтобы избежать конфликта
-  toggleAudio,
-  toggleVideo,
-  toggleScreenShare,
-  initializeLocalStream,
-  cleanup: cleanupWebRTC,
-  peerConnections,
-  retryConnection
-} = useCallWebRTC({
-  callId: String(activeCall?.id) || '',
-  currentUser,
-  callType: activeCall?.type || 'audio',
-  initialParticipants: activeCall?.participants?.map(p => ({
-    userId: p.userId,
-    user: {
-      id: p.user.id,
-      name: p.user.name,
-      surname: p.user.surname,
-      avatar: p.user.avatar,
-      email: p.user.email || '',
-      phone: p.user.phone || ''
-    }
-  })) || [],
-  onRemoteStream: (userId: number, stream: MediaStream) => {
-    console.log('Remote stream received:', userId)
-    // Show visual feedback for remote stream
-  },
-  onRemoteDisconnect: (userId: number) => {
-    console.log('Remote user disconnected:', userId)
-    // Handle remote user disconnect
-  }
-})
 
-// Функция для начала звонка с опциональными медиа разрешениями
-const handleStartCall = async (type: 'audio' | 'video', withMedia: boolean = false) => {
-  try {
-    console.log('Starting call of type:', type, 'with media:', withMedia)
-    
-    // Если пользователь хочет использовать медиа, проверяем доступность
-    if (withMedia) {
-      if (type === 'video') {
-        try {
-          await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        } catch (error) {
-          console.warn('Video/audio access denied, continuing without media')
-          // Не прерываем процесс, просто продолжаем без медиа
-        }
-      } else {
-        try {
-          await navigator.mediaDevices.getUserMedia({ audio: true })
-        } catch (error) {
-          console.warn('Audio access denied, continuing without media')
-          // Не прерываем процесс, просто продолжаем без медиа
-        }
-      }
-    }
-    
-    const callData = await initiateCall(chatInfo.id, type)
-    setActiveCall(callData)
-    setIsCallActive(true)
-    
-    console.log('Call initiated successfully:', callData)
-  } catch (error) {
-    console.error('Error starting call:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Ошибка начала звонка'
-    alert(errorMessage)
-  }
-}
+const [showCall, setShowCall] = useState(false)
 
-// Функция для завершения звонка
-const handleEndCall = async () => {
-  if (!activeCall) return
-  
-  try {
-    await endCall(activeCall.id)
-    cleanupWebRTC()
-    setActiveCall(null)
-    setIsCallActive(false)
-  } catch (error) {
-    console.error('Error ending call:', error)
-  }
-}
+const call = useCall(`chat-${chatInfo.id}`, showCall)
 
-// Проверка активных звонков
-useEffect(() => {
-  if (!currentUser.id) return;
+const handleStartCall = () => {
+  router.push(`/call/${chatInfo.id}`);
+};
 
-  const pusher = getPusherClient();
-  if (!pusher) {
-    console.error('Pusher client not initialized');
-    return;
-  }
-
-  const userChannel = pusher.subscribe(`user-${currentUser.id}`);
-  
-  // Обработчик входящих звонков
-  const handleIncomingCall = (data: any) => {
-    console.log('Incoming call received - full data:', data);
-    console.log('Call ID:', data.callId, 'Type:', typeof data.callId);
-    console.log('Current user ID:', currentUser.id);
-    
-    // Критически важные проверки:
-    const callId = Number(data.callId);
-    
-    if (!callId || isNaN(callId)) {
-      console.error('Invalid call ID:', data.callId);
-      return;
-    }
-    
-    // 1. Проверяем, что это для нашего чата
-    if (Number(data.chatId) !== chatInfo.id) {
-      console.log('Ignoring - wrong chat ID:', data.chatId, 'expected:', chatInfo.id);
-      return;
-    }
-    
-    // 2. Проверяем, что звонок не от нас самих
-    if (Number(data.initiatorId) === currentUser.id) {
-      console.log('Ignoring - call from self');
-      return;
-    }
-    
-    // 3. Игнорируем завершенные звонки
-    if (data.status === 'ended' || data.status === 'declined' || data.status === 'missed') {
-      console.log('Ignoring - call already ended/declined');
-      return;
-    }
-    
-    // 4. Проверяем, нет ли уже активного звонка
-    if (activeCall?.id === callId) {
-      console.log('Ignoring - already have active call with this id');
-      return;
-    }
-    
-    // 5. Проверяем, нет ли уже входящего звонка
-    if (incomingCall?.id === callId) {
-      console.log('Ignoring - duplicate incoming call');
-      return;
-    }
-    
-    // 6. Если уже обрабатываем звонок, пропускаем
-    if (isProcessingCall) {
-      console.log('Ignoring - call processing in progress');
-      return;
-    }
-    
-    console.log('Setting incoming call with ID:', callId);
-    
-    // Преобразуем данные для корректного формата
-    const incomingCallData: CallData = {
-      id: callId,
-      chatId: Number(data.chatId),
-      initiatorId: Number(data.initiatorId),
-      type: data.type,
-      status: data.status || 'ringing',
-      startTime: new Date(data.startTime || Date.now()),
-      endTime: data.endTime ? new Date(data.endTime) : undefined,
-      duration: data.duration,
-      initiator: data.initiator,
-      participants: data.participants || []
-    };
-    
-    setIncomingCall(incomingCallData);
-  };
-  
-  // Обработчик завершенных звонков
-  const handleCallEnded = (data: any) => {
-    console.log('Call ended event received:', data);
-    
-    if (activeCall?.id === data.callId) {
-      setActiveCall(null);
-      setIsCallActive(false);
-      cleanupWebRTC();
-    }
-    
-    if (incomingCall?.id === data.callId) {
-      setIncomingCall(null);
-    }
-  };
-  
-  // Обработчик принятых звонков
-  const handleCallAccepted = (data: any) => {
-    console.log('Call accepted event received:', data);
-    
-    // Если принят наш входящий звонок
-    if (incomingCall?.id === data.callId) {
-      console.log('Our incoming call was accepted by someone else');
-      setIncomingCall(null);
-    }
-    
-    // Если мы приняли звонок
-    if (activeCall?.id === data.callId && data.userId === currentUser.id) {
-      console.log('We accepted the call');
-    }
-  };
-  
-  userChannel.bind('call-incoming', handleIncomingCall);
-  userChannel.bind('call-ended', handleCallEnded);
-  userChannel.bind('call-accepted', handleCallAccepted);
-  
-  // Проверяем активный звонк при загрузке
-  const checkActiveCall = async () => {
-    try {
-      const active = await getActiveCallInChat(chatInfo.id);
-      if (active) {
-        // Проверяем, является ли пользователь участником
-        const isParticipant = active.participants.some(
-          p => p.userId === currentUser.id
-        );
-        
-        if (isParticipant) {
-          setActiveCall(active);
-          setIsCallActive(true);
-        } else if (active.status === 'ringing') {
-          // Показываем уведомление только если звонок звонит и мы не участник
-          setIncomingCall(active);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking active call:', error);
-    }
-  };
-  
-  checkActiveCall();
-  
-  return () => {
-    userChannel.unbind('call-incoming', handleIncomingCall);
-    userChannel.unbind('call-ended', handleCallEnded);
-    userChannel.unbind('call-accepted', handleCallAccepted);
-    userChannel.unsubscribe();
-  };
-}, [chatInfo.id, currentUser.id, activeCall?.id, incomingCall?.id, cleanupWebRTC]);
+{showCall && (
+  <CallInterface
+    roomId={`chat-${chatInfo.id}`}
+    onClose={() => setShowCall(false)}
+  />
+)}
 
 // Добавьте кнопки звонков в интерфейс чата
 const renderCallButtons = () => {
-  if (isCallActive || !canSendMessages()) return null
+  if (!canSendMessages()) return null
   
   return (
-    <div className="flex items-center space-x-2">
+    <div className="flex items-center space-x-2 cursor-pointer z-500">
       <button
-        onClick={() => handleStartCall('audio')}
-        className="flex items-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
-        title="Начать аудиозвонок"
-      >
-        <FontAwesomeIcon icon={faPhone} className="w-4 h-4" />
-        <span>Аудио</span>
-      </button>
-      <button
-        onClick={() => handleStartCall('video')}
-        className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors"
-        title="Начать видеозвонок"
-      >
-        <FontAwesomeIcon icon={faVideo} className="w-4 h-4" />
-        <span>Видео</span>
-      </button>
+  onClick={handleStartCall}
+  className="text-green-400 cursor-pointer"
+>
+  <FontAwesomeIcon icon={faPhone} />
+</button>
     </div>
   )
 }
 
-const [isProcessingCall, setIsProcessingCall] = useState(false);
 
-const handleAcceptCall = async (withMedia: boolean = false) => {
-  console.log('🔄 handleAcceptCall called');
-  console.log('📦 Incoming call object:', incomingCall);
-  console.log('📦 Incoming call ID:', incomingCall?.id);
-  console.log('🔄 Is processing?', isProcessingCall);
-  console.log('📱 Accept with media:', withMedia);
-  
-  if (!incomingCall || isProcessingCall) {
-    console.log('❌ Cannot accept:', { 
-      hasCall: !!incomingCall, 
-      isProcessing: isProcessingCall 
-    });
-    return;
-  }
-  
-  const callId = incomingCall.id;
-  
-  if (!callId || typeof callId !== 'number') {
-    console.error('❌ Invalid call ID:', callId);
-    setIncomingCall(null);
-    return;
-  }
-  
-  setIsProcessingCall(true);
-  
-  try {
-    console.log('📞 Calling acceptCall API for ID:', callId);
-    
-    // Проверяем доступность медиа устройств только если пользователь хочет их использовать
-    if (withMedia) {
-      if (incomingCall.type === 'video') {
-        try {
-          await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        } catch (mediaError) {
-          console.warn('Video/audio access denied, continuing without media')
-          // Не прерываем процесс, просто продолжаем без медиа
-        }
-      } else {
-        try {
-          await navigator.mediaDevices.getUserMedia({ audio: true })
-        } catch (mediaError) {
-          console.warn('Audio access denied, continuing without media')
-          // Не прерываем процесс, просто продолжаем без медиа
-        }
-      }
-    }
-    
-    // Показываем статус загрузки
-    const callData = await acceptCall(callId);
-    
-    console.log('✅ Call accepted successfully:', callData);
-    
-    // Сначала очищаем входящий звонок
-    setIncomingCall(null);
-    
-    // Затем устанавливаем активный звонок
-    setActiveCall(callData);
-    setIsCallActive(true);
-    
-    // Инвалидируем кэш
-    queryClient.invalidateQueries({ queryKey: ['active-call', chatInfo.id] });
-    
-  } catch (error) {
-    console.error('❌ Error accepting call:', error);
-    
-    // В любом случае очищаем входящий звонок
-    setIncomingCall(null);
-    
-    // Пробуем получить текущий статус звонка
-    try {
-      const currentCall = await getActiveCallInChat(chatInfo.id);
-      if (currentCall?.participants.some(p => p.userId === currentUser.id)) {
-        console.log('🔄 Fallback: user is already in call');
-        setActiveCall(currentCall);
-        setIsCallActive(true);
-      }
-    } catch (fallbackError) {
-      console.error('Fallback failed:', fallbackError);
-    }
-    
-    // Показываем ошибку пользователю
-    const errorMessage = error instanceof Error ? error.message : 'Ошибка при принятии звонка'
-    alert(errorMessage);
-  } finally {
-    setIsProcessingCall(false);
-  }
-};
-
-const handleDeclineCall = async () => {
-  if (!incomingCall || isProcessingCall) return;
-  
-  setIsProcessingCall(true);
-  try {
-    // 1. Сразу убираем уведомление
-    setIncomingCall(null);
-    
-    // 2. Отклоняем звонок
-    await declineCall(incomingCall.id);
-    
-    // 3. Инвалидируем кэш
-    queryClient.invalidateQueries({ queryKey: ['active-call', chatInfo.id] });
-    
-  } catch (error) {
-    console.error('Error declining call:', error);
-    // Даже при ошибке не показываем уведомление снова
-  } finally {
-    setIsProcessingCall(false);
-  }
-};
 
 useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    // Enter - принять звонок
-    if (e.key === 'Enter' && incomingCall && !isProcessingCall) {
-      e.preventDefault();
-      handleAcceptCall();
-    }
-    // Escape - отклонить звонок
-    if (e.key === 'Escape' && incomingCall && !isProcessingCall) {
-      e.preventDefault();
-      handleDeclineCall();
-    }
-  };
-
-  if (incomingCall) {
-    document.addEventListener('keydown', handleKeyDown);
-  }
-
+  // При монтировании компонента очищаем любой старый звонок
   return () => {
-    document.removeEventListener('keydown', handleKeyDown);
+    if (incomingCall) {
+      setIncomingCall(null);
+    }
   };
-}, [incomingCall, isProcessingCall]);
+}, []);
+
+
 
 // Функция для запуска анимации поднимания микрофона
 const animateMicrophone = () => {
@@ -3114,6 +2796,51 @@ const animateMicrophone = () => {
       setIsUploading(false)
     }
   }
+
+  // const requestLogger = {
+  //   chatRequests: [] as number[],
+  //   statusRequests: [] as number[],
+    
+  //   logChatRequest() {
+  //     const now = Date.now()
+  //     this.chatRequests.push(now)
+      
+  //     // Удаляем старые записи (старше 10 секунд)
+  //     this.chatRequests = this.chatRequests.filter(time => now - time < 10000)
+      
+  //     if (this.chatRequests.length > 20) { // Больше 20 запросов за 10 секунд
+  //       console.error(`⚠️ TOO MANY CHAT REQUESTS: ${this.chatRequests.length} in last 10s`)
+  //       // Можно показать toast или предупреждение пользователю
+  //     }
+  //   },
+    
+  //   logStatusRequest() {
+  //     const now = Date.now()
+  //     this.statusRequests.push(now)
+      
+  //     this.statusRequests = this.statusRequests.filter(time => now - time < 10000)
+      
+  //     if (this.statusRequests.length > 10) {
+  //       console.error(`⚠️ TOO MANY STATUS REQUESTS: ${this.statusRequests.length} in last 10s`)
+  //     }
+  //   }
+  // }
+  
+  // // Перехват fetch для диагностики
+  // const originalFetch = window.fetch
+  // window.fetch = async function(...args) {
+  //   const [url, options] = args
+    
+  //   if (typeof url === 'string') {
+  //     if (url.includes('/chat/')) {
+  //       requestLogger.logChatRequest()
+  //     } else if (url.includes('/api/update-status')) {
+  //       requestLogger.logStatusRequest()
+  //     }
+  //   }
+    
+  //   return originalFetch.apply(this, args)
+  // }
 
   const [linkPreview, setLinkPreview] = useState<{
     url: string
@@ -3282,37 +3009,40 @@ const handleSendVideoMessage = async (videoBlob: Blob) => {
   
   // Обновите useEffect для обработки ссылок
   useEffect(() => {
-    if (newMessage) {
-      const links = extractLinksFromText(newMessage)
-      const lastLink = links[links.length - 1]
-      
-      if (lastLink && lastLink !== linkPreview?.url) {
-        setIsLoadingPreview(true)
-        getLinkPreview(lastLink)
-          .then(preview => {
-            setLinkPreview(preview)
-          })
-          .catch(error => {
-            console.error('Error loading link preview:', error)
-            setLinkPreview(null)
-          })
-          .finally(() => {
-            setIsLoadingPreview(false)
-          })
-      } else if (!lastLink) {
-        setLinkPreview(null)
-      }
-    } else {
-      setLinkPreview(null)
+    if (!newMessage) {
+      setLinkPreview(null);
+      return;
     }
-  }, [newMessage])
+  
+    const links = extractLinksFromText(newMessage);
+    const lastLink = links.at(-1);
+  
+    if (!lastLink || lastLink === linkPreview?.url) return;
+  
+    const controller = new AbortController();
+    const timeout = setTimeout(async () => {
+      try {
+        setIsLoadingPreview(true);
+        const preview = await getLinkPreview(lastLink, controller.signal);
+        setLinkPreview(preview);
+      } catch {}
+      finally {
+        setIsLoadingPreview(false);
+      }
+    }, 600);
+  
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [newMessage]);
 
   // Получаем информацию о закрепленном сообщении
   const { data: pinnedMessage } = useQuery({
     queryKey: ['pinned-message', chatInfo.id],
     queryFn: () => getPinnedMessage(chatInfo.id),
-    refetchInterval: 3000,
-    staleTime: 1000,
+    refetchInterval: false,
+    staleTime: 60_000,
   })
 
   // Проверка прав для закрепления сообщений
@@ -3527,18 +3257,19 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
     try {
       const uploadedFiles: string[] = []
       
+      // Загружаем ВСЕ файлы
       for (const pendingFile of filesToSend) {
         try {
           const formData = new FormData()
           formData.append('file', pendingFile.file)
-
+  
           setPendingFiles(prev => prev.map(pf => 
             pf.id === pendingFile.id ? { ...pf, progress: 50 } : pf
           ))
-
+  
           const result = await uploadFile(formData)
-          uploadedFiles.push(result.url)
-
+          uploadedFiles.push(result.url) // Добавляем ВСЕ URL файлов
+  
           setPendingFiles(prev => prev.map(pf => 
             pf.id === pendingFile.id ? { ...pf, progress: 100 } : pf
           ))
@@ -3546,25 +3277,28 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
           console.error('Error uploading file:', error)
         }
       }
-
+  
       if (editingMessage) {
         await updateMessage(editingMessage.id, textToSend)
         setEditingMessage(null)
       } else {
         let finalContent = textToSend
         
+        // ОБНОВЛЕНО: Теперь передаем ВСЕ uploadedFiles
         if (uploadedFiles.length > 0) {
           if (textToSend) {
             finalContent = textToSend
           } else {
+            // Генерируем описание для всех файлов
             const fileNames = uploadedFiles.map(url => getFileNameFromUrl(url)).join(', ')
             finalContent = `📎 Файлы: ${fileNames}`
           }
           
+          // Передаем ВСЕ uploadedFiles
           await sendMessageOptimistic(
             finalContent, 
-            uploadedFiles[0], 
-            uploadedFiles,
+            uploadedFiles[0], // Первый файл для совместимости
+            uploadedFiles,    // ВСЕ файлы
             undefined,
             replyingTo?.id
           )
@@ -3572,13 +3306,13 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
           await sendMessageOptimistic(finalContent, undefined, undefined, undefined, replyingTo?.id)
         }
       }
-
+  
       setNewMessage('')
       setPendingFiles([])
       setReplyingTo(null)
       setLinkPreview(null)
       setAutoScroll(true)
-
+  
     } catch (error) {
       console.error('Error sending message:', error)
     } finally {
@@ -3726,42 +3460,402 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
     }
   }
 
-  const getCallParticipants = () => {
-    if (!activeCall || !localStream) return [];
+
+
+
+
+
+  const [dragDropState, setDragDropState] = useState<DragDropState>({
+    isDragging: false,
+    files: [],
+    position: { x: 0, y: 0 }
+  });
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     
-    const participants = [];
+    // Проверяем, содержит ли drag данные с файлами
+    if (e.dataTransfer?.types.includes('Files')) {
+      setDragDropState(prev => ({
+        ...prev,
+        isDragging: true,
+        position: {
+          x: e.clientX,
+          y: e.clientY
+        }
+      }));
+    }
+  }, []);
+  
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     
-    // Добавляем локального пользователя
-    participants.push({
-      user: currentUser,
-      stream: localStream,
-      isVideoEnabled: isVideoEnabled && activeCall.type === 'video',
-      isAudioEnabled: isAudioEnabled,
-      isSpeaking: false,
-      isLocal: true
-    });
+    if (dragDropState.isDragging) {
+      setDragDropState(prev => ({
+        ...prev,
+        position: {
+          x: e.clientX,
+          y: e.clientY
+        }
+      }));
+    }
+  }, [dragDropState.isDragging]);
+  
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     
-    // Добавляем удаленных участников
-    remoteStreams.forEach((stream, userId) => {
-      const participantData = activeCall.participants.find(p => p.userId === userId);
-      participants.push({
-        user: participantData?.user || { 
-          id: userId, 
-          name: 'Участник', 
-          surname: '', 
-          email: '',
-          avatar: null
-        },
-        stream,
-        isVideoEnabled: activeCall.type === 'video',
-        isAudioEnabled: true,
-        isSpeaking: false,
-        isLocal: false
+    // Проверяем, покидает ли курсор весь документ
+    const relatedTarget = e.relatedTarget as Node;
+    const currentTarget = e.currentTarget as Node;
+    
+    if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
+      setDragDropState(prev => ({
+        ...prev,
+        isDragging: false,
+        files: []
+      }));
+    }
+  }, []);
+  
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const files = Array.from(e.dataTransfer?.files || []);
+    
+    if (files.length === 0) {
+      setDragDropState({
+        isDragging: false,
+        files: [],
+        position: { x: 0, y: 0 }
       });
+      return;
+    }
+  
+    // Показываем состояние загрузки
+    setDragDropState(prev => ({
+      ...prev,
+      files
+    }));
+  
+    // Обрабатываем файлы
+    await processDroppedFiles(files);
+  
+    // Сбрасываем состояние
+    setDragDropState({
+      isDragging: false,
+      files: [],
+      position: { x: 0, y: 0 }
     });
+  }, []);
+
+  // Функция для обработки перетащенных файлов
+  const processDroppedFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    const validFiles = files.filter(file => {
+      const maxSize = file.type.startsWith('image/') || file.type.startsWith('video/') 
+        ? 20 * 1024 * 1024 
+        : 10 * 1024 * 1024
+      
+      if (file.size > maxSize) {
+        alert(`Файл "${file.name}" слишком большой. Максимальный размер: ${maxSize / 1024 / 1024}MB`)
+        return false
+      }
+      return true
+    });
+
+    if (validFiles.length === 0) return;
+
+    const newPendingFiles: PendingFile[] = validFiles.map(file => {
+      const id = Math.random().toString(36).substr(2, 9)
+      let previewUrl: string | undefined
+
+      if (file.type.startsWith('image/')) {
+        previewUrl = URL.createObjectURL(file)
+      } else if (file.type.startsWith('video/')) {
+        // Для видео тоже можем создать превью
+        const video = document.createElement('video')
+        video.preload = 'metadata'
+        video.onloadedmetadata = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width = video.videoWidth
+          canvas.height = video.videoHeight
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+            previewUrl = canvas.toDataURL('image/jpeg')
+            
+            // Обновляем состояние с новым превью
+            setPendingFiles(prev => prev.map(pf => 
+              pf.id === id ? { ...pf, previewUrl } : pf
+            ))
+          }
+        }
+        video.src = URL.createObjectURL(file)
+      }
+
+      return {
+        id,
+        file,
+        previewUrl,
+        progress: 0
+      }
+    })
+
+    setPendingFiles(prev => [...prev, ...newPendingFiles])
     
-    return participants;
+    // Прокручиваем к новым файлам
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+      }
+    }, 100)
   };
+
+  // Добавьте useEffect для обработчиков событий drag-and-drop
+  useEffect(() => {
+    const handleGlobalDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer?.types.includes('Files')) {
+        setDragDropState(prev => ({
+          ...prev,
+          isDragging: true,
+          position: {
+            x: e.clientX,
+            y: e.clientY
+          }
+        }));
+      }
+    };
+  
+    const handleGlobalDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      if (dragDropState.isDragging) {
+        setDragDropState(prev => ({
+          ...prev,
+          position: {
+            x: e.clientX,
+            y: e.clientY
+          }
+        }));
+      }
+    };
+  
+    const handleGlobalDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      // Проверяем, что курсор выходит за пределы окна
+      if (!e.relatedTarget) {
+        setDragDropState(prev => ({
+          ...prev,
+          isDragging: false,
+          files: []
+        }));
+      }
+    };
+  
+    const handleGlobalDrop = (e: DragEvent) => {
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer?.files || []);
+      
+      if (files.length > 0) {
+        processDroppedFiles(files);
+      }
+      
+      setDragDropState({
+        isDragging: false,
+        files: [],
+        position: { x: 0, y: 0 }
+      });
+    };
+  
+    // Предотвращаем стандартное поведение браузера
+    const preventDefault = (e: DragEvent) => {
+      e.preventDefault();
+    };
+  
+    // Добавляем обработчики на весь документ
+    document.addEventListener('dragenter', handleGlobalDragEnter);
+    document.addEventListener('dragover', preventDefault);
+    document.addEventListener('dragover', handleGlobalDragOver);
+    document.addEventListener('dragleave', handleGlobalDragLeave);
+    document.addEventListener('drop', preventDefault);
+    document.addEventListener('drop', handleGlobalDrop);
+  
+    return () => {
+      document.removeEventListener('dragenter', handleGlobalDragEnter);
+      document.removeEventListener('dragover', preventDefault);
+      document.removeEventListener('dragover', handleGlobalDragOver);
+      document.removeEventListener('dragleave', handleGlobalDragLeave);
+      document.removeEventListener('drop', preventDefault);
+      document.removeEventListener('drop', handleGlobalDrop);
+    };
+  }, []);
+
+  const DragDropOverlay = () => {
+    if (!dragDropState.isDragging) return null;
+  
+    return (
+      <div 
+        className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center"
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragDropState(prev => ({
+            ...prev,
+            position: {
+              x: e.clientX,
+              y: e.clientY
+            }
+          }));
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          // Проверяем, что курсор выходит из overlay
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setDragDropState(prev => ({
+              ...prev,
+              isDragging: false,
+              files: []
+            }));
+          }
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const files = Array.from(e.dataTransfer.files || []);
+          if (files.length > 0) {
+            processDroppedFiles(files);
+          }
+          
+          setDragDropState({
+            isDragging: false,
+            files: [],
+            position: { x: 0, y: 0 }
+          });
+        }}
+      >
+        {/* Анимированная иконка */}
+        <div className="relative mb-8">
+          <div className="w-32 h-32 border-4 border-dashed border-purple-400 rounded-2xl flex items-center justify-center animate-pulse">
+            <div className="text-center">
+              <div className="text-5xl mb-2">📁</div>
+              <div className="text-5xl animate-bounce">⬇️</div>
+            </div>
+          </div>
+          
+          {/* Круговой индикатор */}
+          <div className="absolute inset-0">
+            <svg className="w-full h-full" viewBox="0 0 100 100">
+              <circle
+                cx="50"
+                cy="50"
+                r="45"
+                fill="none"
+                stroke="rgba(168, 85, 247, 0.3)"
+                strokeWidth="3"
+              />
+              <circle
+                cx="50"
+                cy="50"
+                r="45"
+                fill="none"
+                stroke="rgba(168, 85, 247, 0.8)"
+                strokeWidth="3"
+                strokeDasharray="283"
+                strokeDashoffset="70"
+                className="animate-spin"
+                style={{ 
+                  animation: 'spin 2s linear infinite',
+                  transformOrigin: '50% 50%'
+                }}
+              />
+            </svg>
+          </div>
+        </div>
+  
+        {/* Текст */}
+        <h2 className="text-3xl font-bold text-white mb-4 text-center">
+          Перетащите файлы сюда
+        </h2>
+        
+        <p className="text-gray-300 text-lg mb-2 text-center">
+          Отпустите, чтобы загрузить файлы в чат
+        </p>
+        
+        <div className="flex items-center space-x-4 mt-6">
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-2">
+              <span className="text-2xl">🖼️</span>
+            </div>
+            <span className="text-sm text-gray-300">Изображения</span>
+          </div>
+          
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-2">
+              <span className="text-2xl">🎥</span>
+            </div>
+            <span className="text-sm text-gray-300">Видео</span>
+          </div>
+          
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-2">
+              <span className="text-2xl">📄</span>
+            </div>
+            <span className="text-sm text-gray-300">Документы</span>
+          </div>
+        </div>
+  
+        {/* Индикатор количества файлов */}
+        {dragDropState.files.length > 0 && (
+          <div className="mt-6 bg-purple-500/20 backdrop-blur-sm border border-purple-400/30 rounded-full px-6 py-2">
+            <p className="text-white text-sm">
+              <span className="font-bold">{dragDropState.files.length}</span> файлов готовы к загрузке
+            </p>
+          </div>
+        )}
+  
+        {/* Кнопка отмены */}
+        <button
+          onClick={() => setDragDropState({
+            isDragging: false,
+            files: [],
+            position: { x: 0, y: 0 }
+          })}
+          className="mt-8 px-6 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-full transition-colors border border-gray-500/50"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          Отмена
+        </button>
+  
+        {/* Анимация следования за курсором */}
+        {dragDropState.position && (
+          <div 
+            className="fixed pointer-events-none"
+            style={{
+              left: dragDropState.position.x - 50,
+              top: dragDropState.position.y - 50,
+              zIndex: 101
+            }}
+          >
+            <div className="w-20 h-20 bg-gradient-to-br from-purple-500/30 to-pink-500/30 rounded-full border-2 border-dashed border-purple-300/50 flex items-center justify-center">
+              <span className="text-2xl">📎</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+
+
+
+
 
   const getChatUserId = () => {
     if (chatInfo.type === 'GROUP') {
@@ -3815,7 +3909,12 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
     }
   }
 
-  function GroupOnlineStatus({ chatId }: { chatId: number }) {
+  function GroupOnlineStatus({ chatId, chatType }: { chatId: number, chatType: string }) {
+
+    if (chatType !== 'PRIVATE') {
+      return null;
+    }
+
     const usersStatus = useChatUsersStatus(chatId)
     const onlineUsers = usersStatus.filter(user => user.isOnline)
     
@@ -3962,50 +4061,18 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
                 <h1 className="text-xl font-semibold text-white">
                   {getChatName()}
                 </h1>
+                <p className="text-gray-400">
                   {getChatDescription(chatInfo, currentUser)}
+                </p>
               </div>
             </div>
           </Link>
           
           {chatInfo.type === 'GROUP' && (
-                <GroupOnlineStatus chatId={chatInfo.id} />
+                <GroupOnlineStatus chatId={chatInfo.id} chatType={chatInfo.type} />
               )}
 
 {renderCallButtons()}
-    
-    {/* Интерфейс активного звонка */}
-    {isCallActive && activeCall && (
-  <CallInterface
-    callId={String(activeCall.id)}
-    currentUser={currentUser}
-    participantsFromDB={activeCall.participants}
-    callType={activeCall.type}
-    onToggleAudio={toggleAudio}
-    onToggleVideo={toggleVideo}
-    onEndCall={handleEndCall}
-    onToggleScreenShare={toggleScreenShare}
-    isScreenSharing={isScreenSharing}
-    localStream={localStream}
-    remoteStreams={remoteStreams}
-    isAudioEnabled={isAudioEnabled}
-    isVideoEnabled={isVideoEnabled}
-    webRTCParticipants={webRTCParticipants}
-    peerConnections={peerConnections}
-    onRetryConnection={retryConnection}
-  />
-)}
-    
-    {/* Уведомление о входящем звонке */}
-    {incomingCall && !isProcessingCall && !activeCall && (
-  <CallNotification
-    callId={String(incomingCall.id)}
-    caller={chatInfo.members.find(m => m.userId === incomingCall.initiatorId)?.user || currentUser}
-    callType={incomingCall.type}
-    chatId={chatInfo.id}
-    onAccept={handleAcceptCall}
-    onDecline={handleDeclineCall}
-  />
-)}
           
           <AnimateIcon animateOnHover>
           <button
@@ -4022,7 +4089,11 @@ const navigateSearchResults = (direction: 'next' | 'prev') => {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-screen relative p-4">
+    <div className="flex-1 flex flex-col h-screen relative p-4" onDragEnter={handleDragEnter}
+    onDragOver={handleDragOver}
+    onDragLeave={handleDragLeave}
+    onDrop={handleDrop}>
+      <DragDropOverlay />
       {/* Шапка чата */}
       {renderChatHeader()}
 

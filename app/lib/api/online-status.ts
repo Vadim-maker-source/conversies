@@ -13,7 +13,7 @@ export async function updateOnlineStatus(isOnline: boolean) {
       await prisma.user.update({
         where: { id: currentUser.id },
         data: {
-          isOnline: isOnline, // Используйте переданный параметр, а не всегда true
+          isOnline: isOnline,
           lastSeen: new Date()
         }
       })

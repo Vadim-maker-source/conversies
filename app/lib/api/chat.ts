@@ -4,6 +4,7 @@ import { prisma } from '@/app/lib/prisma'
 import { getCurrentUser } from '@/app/lib/api/user'
 import type { Chat, ChatWithDetails, Message } from '@/app/lib/types'
 import { put } from '@vercel/blob'
+import { pusherServer } from '../pusher-server'
 
 // Поиск пользователей для чата
 export async function searchUsers(query: string) {
@@ -55,26 +56,60 @@ export async function searchAll(query: string) {
   if (!currentUser) return { users: [], chats: [] }
 
   try {
+    // Определяем тип поиска на клиенте и обрабатываем запрос
+    const processedQuery = query.trim()
+    
+    let userWhereClause: any = {
+      id: { not: currentUser.id }
+    }
+
+    // Определяем тип поиска по самому запросу
+    if (processedQuery.startsWith('@')) {
+      // Поиск по username (без символа @)
+      const username = processedQuery.substring(1)
+      userWhereClause = {
+        ...userWhereClause,
+        OR: [
+          { username: { contains: username, mode: 'insensitive' } },
+          // Также ищем по email и фамилии с @ для совместимости
+          { email: { contains: processedQuery, mode: 'insensitive' } },
+          { surname: { contains: username, mode: 'insensitive' } }
+        ]
+      }
+    } else if (/^[\d+\-\s()]+$/.test(processedQuery)) {
+      // Поиск по номеру телефона (очищаем от лишних символов)
+      const cleanPhone = processedQuery.replace(/[\s+\-()]/g, '')
+      userWhereClause = {
+        ...userWhereClause,
+        OR: [
+          { phone: { contains: cleanPhone } },
+          // Также ищем по email для совместимости
+          { email: { contains: processedQuery, mode: 'insensitive' } },
+          { surname: { contains: processedQuery, mode: 'insensitive' } }
+        ]
+      }
+    } else {
+      // Общий поиск: по email и фамилии (но НЕ по имени)
+      userWhereClause = {
+        ...userWhereClause,
+        OR: [
+          { email: { contains: processedQuery, mode: 'insensitive' } },
+          { surname: { contains: processedQuery, mode: 'insensitive' } }
+          // Имя НЕ включаем в поиск
+        ]
+      }
+    }
+
     // Поиск пользователей
     const users = await prisma.user.findMany({
-      where: {
-        AND: [
-          {
-            OR: [
-              { name: { contains: query, mode: 'insensitive' } },
-              { surname: { contains: query, mode: 'insensitive' } },
-              { email: { contains: query, mode: 'insensitive' } }
-            ]
-          },
-          { id: { not: currentUser.id } }
-        ]
-      },
+      where: userWhereClause,
       select: {
         id: true,
         name: true,
         surname: true,
         email: true,
         phone: true,
+        username: true, // Добавляем username в результат
         avatar: true,
         isPremium: true,
         createdAt: true,
@@ -83,13 +118,13 @@ export async function searchAll(query: string) {
       take: 10
     })
 
-    // Поиск публичных чатов и каналов (только те, у которых isPrivate = false)
+    // Поиск публичных чатов и каналов
     const publicChats = await prisma.chat.findMany({
       where: {
         AND: [
           {
             OR: [
-              { name: { contains: query, mode: 'insensitive' } }
+              { name: { contains: processedQuery, mode: 'insensitive' } }
             ]
           },
           { isPrivate: false }, // Только публичные
@@ -126,6 +161,7 @@ export async function searchAll(query: string) {
                 surname: true,
                 email: true,
                 phone: true,
+                username: true,
                 avatar: true,
                 isPremium: true
               }
@@ -277,11 +313,11 @@ export async function getUserChats(): Promise<ChatWithDetails[]> {
                 isPremium: true,
                 isOnline: true,
                 lastSeen: true,
-                notificationMode: true, // Добавлено
-                username: true, // Добавлено
-                place: true, // Добавлено
-                bio: true, // Добавлено
-                coins: true // Добавлено
+                notificationMode: true,
+                username: true,
+                place: true,
+                bio: true,
+                coins: true
               }
             }
           }
@@ -301,24 +337,12 @@ export async function getUserChats(): Promise<ChatWithDetails[]> {
                 phone: true,
                 avatar: true,
                 isPremium: true,
-                notificationMode: true, // Добавлено
-                username: true, // Добавлено
-                place: true // Добавлено
+                notificationMode: true,
+                username: true,
+                place: true
               }
-            }
-          }
-        },
-        pinnedMessage: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                surname: true,
-                avatar: true,
-                notificationMode: true // Добавлено
-              }
-            }
+            },
+            readBy: true
           }
         },
         _count: {
@@ -332,23 +356,59 @@ export async function getUserChats(): Promise<ChatWithDetails[]> {
       }
     })
 
-    return chats.map(chat => ({
-      ...chat,
-      members: chat.members.map(member => ({
-        ...member,
-        user: {
-          ...member.user,
-          notificationMode: member.user.notificationMode === null ? undefined : member.user.notificationMode as 'none' | 'normal' | 'all'
+    // Рассчитываем количество непрочитанных сообщений для каждого чата
+    const chatsWithUnreadCounts = await Promise.all(chats.map(async (chat) => {
+      // Получаем количество непрочитанных сообщений от других пользователей
+      const unreadCount = await prisma.message.count({
+        where: {
+          chatId: chat.id,
+          userId: { not: currentUser.id },
+          readBy: {
+            none: {
+              userId: currentUser.id
+            }
+          }
         }
-      })),
-      lastMessage: chat.messages[0] ? {
+      })
+
+      const lastMessage = chat.messages[0] ? {
         ...chat.messages[0],
         user: {
           ...chat.messages[0].user,
-          notificationMode: chat.messages[0].user.notificationMode === null ? undefined : chat.messages[0].user.notificationMode as 'none' | 'normal' | 'all'
+          notificationMode: chat.messages[0].user.notificationMode === null 
+            ? undefined 
+            : chat.messages[0].user.notificationMode as 'none' | 'normal' | 'all'
         }
       } : undefined
+
+      return {
+        ...chat,
+        members: chat.members.map(member => ({
+          ...member,
+          user: {
+            ...member.user,
+            notificationMode: member.user.notificationMode === null 
+              ? undefined 
+              : member.user.notificationMode as 'none' | 'normal' | 'all'
+          }
+        })),
+        lastMessage,
+        id: chat.id,
+        name: chat.name,
+        type: chat.type,
+        isChannel: chat.isChannel,
+        avatar: chat.avatar,
+        createdAt: chat.createdAt,
+        updatedAt: chat.updatedAt,
+        isPrivate: chat.isPrivate || false,
+        pinnedMessageId: null,
+        pinnedMessage: null,
+        _count: chat._count,
+        unreadCount // Добавляем количество непрочитанных сообщений
+      } as ChatWithDetails & { unreadCount: number }
     }))
+
+    return chatsWithUnreadCounts
   } catch (error) {
     console.error('Error fetching user chats:', error)
     return []
@@ -378,9 +438,25 @@ export async function sendMessage(
 
     if (!chatMember) throw new Error('Не участник чата')
 
-    const chat = await prisma.chat.findUnique({
-      where: { id: chatId }
-    })
+      const chat = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  surname: true,
+                  notificationMode: true
+                }
+              }
+            }
+          }
+        }
+      })
+  
+      
 
     if (chat?.isChannel && !['ADMIN', 'OWNER'].includes(chatMember.role)) {
       throw new Error('В этом канале могут писать только администраторы')
@@ -389,39 +465,54 @@ export async function sendMessage(
     // Определяем, является ли это стикером
     const isSticker = imageUrl && imageUrl.includes('/stickers/')
     
-    // Для файлов: определяем imageUrl и fileUrl
-    let finalImageUrl = imageUrl || null
-    let finalFileUrl = fileUrl || null
+    // Используем Set для предотвращения дублирования
+    const uniqueFileUrls = new Set<string>()
+    const uniqueImageUrls = new Set<string>()
 
-    // Если есть fileUrls, используем первый файл для определения типа
+    // Добавляем файлы из массива fileUrls
     if (fileUrls && fileUrls.length > 0) {
-      const firstFile = fileUrls[0]
-      if (firstFile.match(/\.(jpg|jpeg|png|gif|webp|avif)$/i)) {
-        // Первый файл - изображение
-        finalImageUrl = firstFile
-        finalFileUrl = firstFile
-      } else {
-        // Первый файл - не изображение
-        finalFileUrl = firstFile
-      }
-    } else if (fileUrl) {
-      // Один файл
-      if (fileUrl.match(/\.(jpg|jpeg|png|gif|webp|avif)$/i)) {
-        finalImageUrl = fileUrl
-        finalFileUrl = fileUrl
-      } else {
-        finalFileUrl = fileUrl
+      fileUrls.forEach(url => {
+        uniqueFileUrls.add(url)
+        
+        // Определяем, является ли файл изображением
+        if (url.match(/\.(jpg|jpeg|png|gif|webp|avif|svg)$/i)) {
+          uniqueImageUrls.add(url)
+        }
+      })
+    }
+    
+    // Добавляем отдельный fileUrl (если передан)
+    if (fileUrl) {
+      uniqueFileUrls.add(fileUrl)
+      
+      // Если это изображение, добавляем и в imageUrls
+      if (fileUrl.match(/\.(jpg|jpeg|png|gif|webp|avif|svg)$/i)) {
+        uniqueImageUrls.add(fileUrl)
       }
     }
+    
+    // Обрабатываем отдельное изображение (если не стикер)
+    if (imageUrl && !isSticker) {
+      uniqueImageUrls.add(imageUrl)
+      // Добавляем в fileUrls только если его там еще нет
+      if (!uniqueFileUrls.has(imageUrl)) {
+        uniqueFileUrls.add(imageUrl)
+      }
+    }
+
+    // Для стикеров - только один URL в imageUrls
+    const finalImageUrls = isSticker && imageUrl ? [imageUrl] : Array.from(uniqueImageUrls)
+    const finalFileUrls = Array.from(uniqueFileUrls)
 
     const message = await prisma.message.create({
       data: {
         content,
         userId: currentUser.id,
         chatId,
-        imageUrl: isSticker ? imageUrl : finalImageUrl, // Для стикеров используем imageUrl, для файлов - finalImageUrl
-        fileUrl: finalFileUrl,
-        messageId: replyToId
+        imageUrls: finalImageUrls,
+        fileUrls: finalFileUrls,
+        messageId: replyToId,
+        isShared: false
       },
       include: {
         user: {
@@ -446,10 +537,33 @@ export async function sendMessage(
       }
     })
 
-    // Добавляем fileUrls к сообщению для клиента
-    const messageWithFiles = {
-      ...message,
-      fileUrls: fileUrls || (fileUrl ? [fileUrl] : [])
+    if (chat) {
+      const senderName = `${currentUser.name} ${currentUser.surname}`
+      
+      // Отправляем уведомления всем участникам, кроме отправителя
+      for (const member of chat.members) {
+        if (member.userId !== currentUser.id) {
+          
+          // Проверяем настройки уведомлений пользователя
+          const shouldNotify = member.user.notificationMode !== 'none'
+          
+          if (shouldNotify) {
+            // Отправляем через Pusher
+            await pusherServer.trigger(
+              `user-${member.userId}-notifications`,
+              'new-message',
+              {
+                chatId,
+                senderName,
+                senderId: currentUser.id,
+                content: content || (fileUrl ? '📎 Файл' : ''),
+                messageId: message.id,
+                timestamp: new Date().toISOString()
+              }
+            )
+          }
+        }
+      }
     }
 
     await prisma.chat.update({
@@ -457,7 +571,11 @@ export async function sendMessage(
       data: { updatedAt: new Date() }
     })
 
-    return messageWithFiles
+    return {
+      ...message,
+      imageUrls: finalImageUrls,
+      fileUrls: finalFileUrls
+    }
   } catch (error) {
     console.error('Error sending message:', error)
     throw error
@@ -487,11 +605,11 @@ export async function getChatMessages(chatId: number, page: number = 1, limit: n
       },
       include: {
         user: true,
-        bot: true, // Добавляем включение данных о боте
+        bot: true,
         replyTo: {
           include: {
             user: true,
-            bot: true // Добавляем для ответов
+            bot: true
           }
         },
         originalMessage: {
@@ -553,12 +671,18 @@ export async function getChatMessages(chatId: number, page: number = 1, limit: n
     const totalMembers = chat?.members.length || 0
 
     const messagesWithReactions = messages.map(message => {
-      const fileUrls = message.fileUrl ? [message.fileUrl] : []
+      // Используем массивы из базы данных
+      const imageUrls = message.imageUrls || []
+      const fileUrls = message.fileUrls || []
+
+      // Для обратной совместимости сохраняем первый файл как fileUrl
+      const firstFileUrl = fileUrls.length > 0 ? fileUrls[0] : null
+      const firstImageUrl = imageUrls.length > 0 ? imageUrls[0] : null
 
       const isVoiceMessage = Boolean(
         !message.content && 
-        message.fileUrl && 
-        message.fileUrl.match(/\.(mp3|wav|ogg|webm)$/i)
+        firstFileUrl && 
+        firstFileUrl.match(/\.(mp3|wav|ogg|webm)$/i)
       )
       
       const reactions = message.Reaction.reduce((acc, reaction) => {
@@ -568,11 +692,6 @@ export async function getChatMessages(chatId: number, page: number = 1, limit: n
         acc[reaction.emoji].push(reaction.user)
         return acc
       }, {} as Record<string, any[]>)
-
-      let imageUrl = message.imageUrl
-      if (!imageUrl && message.fileUrl && message.fileUrl.match(/\.(jpg|jpeg|png|gif|webp|avif)$/i)) {
-        imageUrl = message.fileUrl
-      }
 
       const readBy = message.readBy || []
       const readCount = readBy.length
@@ -585,8 +704,12 @@ export async function getChatMessages(chatId: number, page: number = 1, limit: n
 
       return {
         ...message,
+        // Для обратной совместимости сохраняем старые поля
+        imageUrl: firstImageUrl,
+        fileUrl: firstFileUrl,
+        // Новые поля с массивами
+        imageUrls,
         fileUrls,
-        imageUrl,
         reactions,
         readBy,
         readCount,
@@ -1178,7 +1301,7 @@ export async function forwardMessage(messageId: number, targetChatId: number) {
       include: {
         user: true,
         replyTo: true,
-        Reaction: { // Добавляем реакции
+        Reaction: {
           include: {
             user: {
               select: {
@@ -1201,9 +1324,9 @@ export async function forwardMessage(messageId: number, targetChatId: number) {
         content: originalMessage.content,
         userId: currentUser.id,
         chatId: targetChatId,
-        imageUrl: originalMessage.imageUrl,
-        fileUrl: originalMessage.fileUrl,
-        originalMessageId: originalMessage.id, // Ссылка на исходное сообщение
+        imageUrls: originalMessage.imageUrls || [],
+        fileUrls: originalMessage.fileUrls || [],
+        originalMessageId: originalMessage.id,
         isShared: true
       },
       include: {
@@ -1215,7 +1338,7 @@ export async function forwardMessage(messageId: number, targetChatId: number) {
             email: true
           }
         },
-        originalMessage: { // ВКЛЮЧАЕМ оригинальное сообщение с пользователем
+        originalMessage: {
           include: {
             user: {
               select: {
@@ -1227,7 +1350,7 @@ export async function forwardMessage(messageId: number, targetChatId: number) {
             }
           }
         },
-        Reaction: { // Добавляем реакции
+        Reaction: {
           include: {
             user: {
               select: {
@@ -1259,6 +1382,8 @@ export async function forwardMessage(messageId: number, targetChatId: number) {
 
     return {
       ...forwardedMessage,
+      imageUrl: forwardedMessage.imageUrls?.[0] || null, // Для обратной совместимости
+      fileUrl: forwardedMessage.fileUrls?.[0] || null, // Для обратной совместимости
       reactions
     }
   } catch (error) {
@@ -1841,10 +1966,10 @@ export async function getPinnedMessage(chatId: number) {
                 id: true,
                 name: true,
                 surname: true,
-                email: true, // Добавлено
-                phone: true, // Добавлено
+                email: true,
+                phone: true,
                 avatar: true,
-                isPremium: true // Добавлено
+                isPremium: true
               }
             },
             readBy: {
@@ -1854,10 +1979,10 @@ export async function getPinnedMessage(chatId: number) {
                     id: true,
                     name: true,
                     surname: true,
-                    email: true, // Добавлено
-                    phone: true, // Добавлено
+                    email: true,
+                    phone: true,
                     avatar: true,
-                    isPremium: true // Добавлено
+                    isPremium: true
                   }
                 }
               }
@@ -1869,10 +1994,10 @@ export async function getPinnedMessage(chatId: number) {
                     id: true,
                     name: true,
                     surname: true,
-                    email: true, // Добавлено
-                    phone: true, // Добавлено
+                    email: true,
+                    phone: true,
                     avatar: true,
-                    isPremium: true // Добавлено
+                    isPremium: true
                   }
                 }
               }
@@ -1932,7 +2057,9 @@ export async function getPinnedMessage(chatId: number) {
       totalMembers,
       readStatus,
       isReadByCurrentUser,
-      fileUrls: chat.pinnedMessage.fileUrl ? [chat.pinnedMessage.fileUrl] : []
+      fileUrls: chat.pinnedMessage.fileUrls || [], // Используем массив файлов
+      imageUrl: chat.pinnedMessage.imageUrls?.[0] || null, // Первое изображение для обратной совместимости
+      fileUrl: chat.pinnedMessage.fileUrls?.[0] || null // Первый файл для обратной совместимости
     }
   } catch (error) {
     console.error('Error fetching pinned message:', error)
@@ -2214,7 +2341,9 @@ export async function searchMessagesInChat(chatId: number, query: string) {
 
     // Преобразуем сообщения в нужный формат
     const formattedMessages = messages.map(message => {
-      const fileUrls = message.fileUrl ? [message.fileUrl] : []
+      // Используем массивы файлов
+      const fileUrls = message.fileUrls || []
+      const imageUrls = message.imageUrls || []
       
       const reactions = message.Reaction.reduce((acc, reaction) => {
         if (!acc[reaction.emoji]) {
@@ -2224,15 +2353,15 @@ export async function searchMessagesInChat(chatId: number, query: string) {
         return acc
       }, {} as Record<string, any[]>)
 
-      let imageUrl = message.imageUrl
-      if (!imageUrl && message.fileUrl && message.fileUrl.match(/\.(jpg|jpeg|png|gif|webp|avif)$/i)) {
-        imageUrl = message.fileUrl
-      }
+      const firstImageUrl = imageUrls.length > 0 ? imageUrls[0] : null
+      const firstFileUrl = fileUrls.length > 0 ? fileUrls[0] : null
 
       return {
         ...message,
         fileUrls,
-        imageUrl,
+        imageUrls,
+        imageUrl: firstImageUrl, // Для обратной совместимости
+        fileUrl: firstFileUrl, // Для обратной совместимости
         reactions,
         readCount: 0,
         totalMembers: 0,
@@ -2248,12 +2377,16 @@ export async function searchMessagesInChat(chatId: number, query: string) {
   }
 }
 
-export async function getLinkPreview(url: string) {
+export async function getLinkPreview(
+  url: string,
+  signal?: AbortSignal
+) {
   const currentUser = await getCurrentUser()
   if (!currentUser) throw new Error('Не авторизован')
 
   try {
     const response = await fetch(url, {
+      signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; LinkPreviewBot/1.0)',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { User } from '@/app/lib/types'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPhone, faVideo, faTimes, faCheck } from '@fortawesome/free-solid-svg-icons'
@@ -25,37 +25,49 @@ export default function CallNotification({
   const [ringing, setRinging] = useState(true)
   const [duration, setDuration] = useState(0)
   const [isProcessing, setIsProcessing] = useState(false)
+  const hasDeclined = useRef(false) // Защита от повторных вызовов
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (!ringing || isProcessing) return
 
-    const timer = setInterval(() => {
+    // Таймер для отображения длительности
+    timerRef.current = setInterval(() => {
       setDuration(prev => prev + 1)
     }, 1000)
 
     // Автоматическое отклонение через 30 секунд
-    const timeout = setTimeout(() => {
-      if (ringing && !isProcessing) {
+    timeoutRef.current = setTimeout(() => {
+      if (ringing && !isProcessing && !hasDeclined.current) {
         handleDecline()
       }
     }, 30000)
 
     return () => {
-      clearInterval(timer)
-      clearTimeout(timeout)
+      if (timerRef.current) clearInterval(timerRef.current)
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
   }, [ringing, isProcessing])
 
+  // Очищаем таймеры при размонтировании
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
+  }, [])
+
   const handleAccept = async () => {
-    if (isProcessing) return
+    if (isProcessing || hasDeclined.current) return
     
     setIsProcessing(true)
     try {
       await onAccept()
       setRinging(false)
     } catch (error) {
-      console.error('Error in accept callback:', error)
-      // Если произошла ошибка, всё равно скрываем уведомление
+      console.error('Error accepting call:', error)
+      // В случае ошибки всё равно скрываем уведомление
       setRinging(false)
     } finally {
       setIsProcessing(false)
@@ -63,20 +75,50 @@ export default function CallNotification({
   }
   
   const handleDecline = async () => {
-    if (isProcessing) return
+    if (isProcessing || hasDeclined.current) return
     
+    hasDeclined.current = true
     setIsProcessing(true)
+    
+    // Очищаем таймеры сразу
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+    
     try {
       await onDecline()
       setRinging(false)
     } catch (error) {
-      console.error('Error in decline callback:', error)
-      // Если произошла ошибка, всё равно скрываем уведомление
+      console.error('Error declining call:', error)
+      // В случае ошибки всё равно скрываем уведомление
       setRinging(false)
     } finally {
       setIsProcessing(false)
     }
   }
+
+  // Обработка клавиш
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!ringing || isProcessing) return
+      
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        handleAccept()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        handleDecline()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [ringing, isProcessing])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -128,7 +170,7 @@ export default function CallNotification({
             Входящий {callType === 'video' ? 'видеозвонок' : 'звонок'}
           </p>
           <p className="text-gray-400 text-sm mb-6">
-            Звонит... {formatTime(duration)}
+            Звонит... {formatTime(duration)} (осталось {30 - duration}с)
           </p>
 
           {/* Кнопки управления */}
@@ -137,9 +179,9 @@ export default function CallNotification({
             <button
               onClick={handleAccept}
               disabled={isProcessing}
-              className="group flex flex-col items-center space-y-2 disabled:opacity-50"
+              className="group flex flex-col items-center space-y-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white hover:from-green-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-lg">
+              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white hover:from-green-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:hover:scale-100 disabled:hover:from-green-500 disabled:hover:to-emerald-600">
                 <FontAwesomeIcon icon={faCheck} className="w-10 h-10" />
               </div>
               <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
@@ -151,9 +193,9 @@ export default function CallNotification({
             <button
               onClick={handleDecline}
               disabled={isProcessing}
-              className="group flex flex-col items-center space-y-2 disabled:opacity-50"
+              className="group flex flex-col items-center space-y-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center text-white hover:from-red-600 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 shadow-lg">
+              <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center text-white hover:from-red-600 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:hover:scale-100 disabled:hover:from-red-500 disabled:hover:to-pink-600">
                 <FontAwesomeIcon icon={faTimes} className="w-10 h-10" />
               </div>
               <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
@@ -162,9 +204,19 @@ export default function CallNotification({
             </button>
           </div>
 
+          {/* Индикатор обработки */}
+          {isProcessing && (
+            <div className="mt-6">
+              <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent"></div>
+              <p className="text-sm text-gray-300 mt-2">Обработка...</p>
+            </div>
+          )}
+
           {/* Подсказка */}
           <p className="text-xs text-gray-500 mt-8">
-            Нажмите клавишу <kbd className="px-2 py-1 bg-gray-700 rounded">↵ Enter</kbd> чтобы принять
+            <kbd className="px-2 py-1 bg-gray-700 rounded">Enter</kbd> - принять
+            &nbsp;•&nbsp;
+            <kbd className="px-2 py-1 bg-gray-700 rounded">Esc</kbd> - отклонить
           </p>
         </div>
       </div>

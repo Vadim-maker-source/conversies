@@ -8,6 +8,7 @@ export type User = {
   email?: string | null
   phone?: string | null
   avatar?: string | null
+  backgroundImage?: string | null
   password?: string | null
   isPremium?: boolean
   notificationMode?: 'none' | 'normal' | 'all'
@@ -122,19 +123,21 @@ export interface Message {
   botId: number | null;
   chatId: number;
   messageId: number | null;
-  imageUrl: string | null;
-  fileUrl: string | null;
+  
+  // ТОЛЬКО массивы
+  imageUrls: string[];
+  fileUrls: string[];
+  
   isEdited: boolean;
   isShared: boolean;
   createdAt: Date;
   updatedAt: Date;
   user: User;
   bot?: Bot | null;
-  replyTo?: Message;
+  replyTo?: Message | null;
   pollId?: number | null;
   
   // Дополнительные поля для клиента
-  fileUrls?: string[];
   reactions?: Record<string, User[]>;
   readBy?: Array<{
     id: number;
@@ -149,6 +152,21 @@ export interface Message {
   isReadByCurrentUser?: boolean;
   originalMessage?: Message;
   originalMessageId?: number | null;
+  isVoiceMessage?: boolean;
+}
+
+export type MessageWithFiles = Omit<Message, 'replyTo' | 'originalMessage'> & {
+  replyTo?: Message | null; // Должно быть такое же определение как в Message
+  originalMessage?: Message | null; // Должно быть такое же определение как в Message
+  isShared?: boolean;
+  messageId?: number | null;
+  originalMessageId?: number | null;
+  readBy?: User[];
+  readCount?: number;
+  totalMembers?: number;
+  readStatus?: 'sent' | 'read' | 'unread';
+  isReadByCurrentUser?: boolean;
+  reactions?: Record<string, any[]>;
   isVoiceMessage?: boolean;
 }
 
@@ -191,18 +209,11 @@ createdAt: Date
 updatedAt: Date
 }
 
-// Упрощенный тип для сообщений с файлами
-export type MessageWithFiles = Message & {
-fileUrls?: string[];
-isVoiceMessage?: boolean;
-}
-
 // Вспомогательный тип для создания временных сообщений
 export type TemporaryMessage = Omit<Message, 'id'> & {
   id: number | string;
-  fileUrls?: string[];
+  // Убираем старые поля, используем только массивы
   isVoiceMessage?: boolean;
-  // Добавить поля для прочтения
   readStatus?: 'sent' | 'read' | 'unread';
   readCount?: number;
   totalMembers?: number;
