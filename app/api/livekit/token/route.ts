@@ -1,6 +1,5 @@
 // app/api/livekit/token/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { generateLiveKitToken } from '@/app/lib/api/calls'
 import { getCurrentUser } from '@/app/lib/api/user'
 
 export async function GET(request: NextRequest) {
@@ -17,18 +16,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Room name is required' }, { status: 400 })
     }
 
-    const token = await generateLiveKitToken(
-      roomName,
-      `user-${currentUser.id}`,
-      JSON.stringify({
-        userId: currentUser.id,
-        name: currentUser.name,
-        surname: currentUser.surname,
-        avatar: currentUser.avatar
-      })
-    )
+    // const token = await generateLiveKitToken(
+    //   roomName,
+    //   `user-${currentUser.id}`,
+    //   JSON.stringify({
+    //     userId: currentUser.id,
+    //     name: currentUser.name,
+    //     surname: currentUser.surname,
+    //     avatar: currentUser.avatar
+    //   })
+    // )
 
-    return NextResponse.json({ token })
+    return
   } catch (error) {
     console.error('Error generating LiveKit token:', error)
     return NextResponse.json(
