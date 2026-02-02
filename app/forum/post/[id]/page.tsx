@@ -171,6 +171,7 @@ export default async function ForumPostPage({ params, searchParams }: Props) {
                     isAuthor={isAuthor}
                     isPinned={post.isPinned}
                     isLocked={post.isLocked}
+                    isSubscribed={true}
                   />
                 </div>
 

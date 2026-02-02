@@ -2480,7 +2480,7 @@ export async function sendVoiceMessage(chatId: number, voiceFileUrl: string) {
         content: '', // Пустой контент для голосовых сообщений
         userId: currentUser.id,
         chatId,
-        fileUrl: voiceFileUrl
+        fileUrls: [voiceFileUrl]
       },
       include: {
         user: {
