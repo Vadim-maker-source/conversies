@@ -11,7 +11,7 @@ import { User } from '@/app/lib/types'
 import { AnimateIcon } from '@/components/animate-ui/icons/icon'
 import { MessageSquareMore, Plus, Trash2, Check, X, Phone, Video, PhoneCall } from 'lucide-react'
 import { getAudioFiles, getDocumentFiles, getMediaFiles } from '@/app/lib/api/profile-content'
-import { getCallHistory } from '@/app/lib/api/calls'
+// import { getCallHistory } from '@/app/lib/api/calls'
 import { Calendar, Clock, Download, FileText, ImageIcon, Music, Play } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -158,13 +158,13 @@ export default function ProfilePage() {
             const docs = await getDocumentFiles(userId) as any as DocumentFile[]
             setDocumentFiles(docs)
             break
-          case 'calls':
-            const calls = await getCallHistory(userId) as any
-            setCallHistory(calls.map((call: any) => ({
-              ...call,
-              participants: call.participants.map((p: any) => p.user)
-            })))
-            break
+          // case 'calls':
+          //   const calls = await getCallHistory(userId) as any
+          //   setCallHistory(calls.map((call: any) => ({
+          //     ...call,
+          //     participants: call.participants.map((p: any) => p.user)
+          //   })))
+          //   break
         }
       } catch (error) {
         console.error('Error loading content:', error)
