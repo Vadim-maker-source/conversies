@@ -2577,7 +2577,7 @@ export async function sendVideoMessage(chatId: number, videoFileUrl: string) {
         content: '🎥 Видеосообщение',
         userId: currentUser.id,
         chatId,
-        fileUrl: videoFileUrl
+        fileUrls: [videoFileUrl]
       },
       include: {
         user: {
