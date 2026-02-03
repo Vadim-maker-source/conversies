@@ -4,6 +4,7 @@ import "./globals.css";
 import './fonts.css';
 import ReactQueryProvider from "@/provider/ReactQueryProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { StreamProvider } from "@/video/StreamProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,12 +47,14 @@ export default function RootLayout({
         <meta name="yandex-verification" content="0a58f104740674d0" />
       </head>
       <ReactQueryProvider>
+      <StreamProvider>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${unbounded.variable} antialiased`}
       >
         {children}
         <Toaster />
       </body>
+      </StreamProvider>
       </ReactQueryProvider>
     </html>
   );

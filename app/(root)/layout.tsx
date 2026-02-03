@@ -41,7 +41,7 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   return (
-    <StreamProvider>
+    
       <div
         className={`flex ${showSidebar ? "max-h-screen" : "h-screen"} bg-black custom-scrollbar overflow-y-scroll relative`}
         style={{
@@ -53,7 +53,6 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => {
         {showSidebar && <Sidebar />}
         {children}
       </div>
-    </StreamProvider>
   )
 }
 
