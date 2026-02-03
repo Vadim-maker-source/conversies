@@ -117,6 +117,7 @@ function SignInForm() {
                     className="px-4 py-3 w-full rounded-lg bg-gray-800/60 border border-gray-600 text-white placeholder-gray-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 outline-none transition-all duration-300"
                     placeholder="Введите вашу почту"
                     value={email}
+                    name="email"
                     onChange={(e) => setEmail(e.target.value)}
                     required
                   />

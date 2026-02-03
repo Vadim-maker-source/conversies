@@ -1209,38 +1209,51 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
   const videoFiles = fileUrls.filter(url => url.match(/\.(mp4|mov|avi|webm|mkv)$/i))
 
   // Компонент для кругового прогресс-бара видео
-  const CircularVideoProgress = ({ progress, size = 60, strokeWidth = 3 }: { progress: number; size?: number; strokeWidth?: number }) => {
+  function CircularProgress({
+    progress,
+    size = 64,
+    strokeWidth = 4,
+    color = '#a855f7',
+  }: {
+    progress: number
+    size?: number
+    strokeWidth?: number
+    color?: string
+  }) {
     const radius = (size - strokeWidth) / 2
-    const circumference = radius * 2 * Math.PI
-    const strokeDashoffset = circumference - (progress / 100) * circumference
-
+    const circumference = 2 * Math.PI * radius
+    const offset = circumference - (progress / 100) * circumference
+  
     return (
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <svg width={size} height={size} className="transform -rotate-90">
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            stroke="rgba(255, 255, 255, 0.3)"
-            strokeWidth={strokeWidth}
-            fill="none"
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            stroke={isOwn ? "#a855f7" : "#3b82f6"}
-            strokeWidth={strokeWidth}
-            fill="none"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-            className="transition-all duration-100"
-          />
-        </svg>
-      </div>
+      <svg
+        width={size}
+        height={size}
+        className="absolute top-2 left-2 pointer-events-none"
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="rgba(255,255,255,0.25)"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 0.1s linear' }}
+        />
+      </svg>
     )
   }
+  
 
   return (
     <>
@@ -1297,8 +1310,13 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
                 
                 {/* Круговой прогресс-бар для видеосообщений */}
                 {isVideoMessage && (
-                  <CircularVideoProgress progress={videoProgress} />
-                )}
+    <CircularProgress
+      progress={videoProgress}
+      size={64}
+      strokeWidth={4}
+      color={isOwn ? '#a855f7' : '#3b82f6'}
+    />
+  )}
                 
                 <button
                   onClick={(e) => handleDownloadMedia(fileUrl, e)}
@@ -1396,10 +1414,13 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
                 
                 {/* Круговой прогресс-бар в модальном окне для видеосообщений */}
                 {isVideoMessage && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <CircularVideoProgress progress={videoProgress} size={380} strokeWidth={6} />
-                  </div>
-                )}
+    <CircularProgress
+      progress={videoProgress}
+      size={64}
+      strokeWidth={4}
+      color={isOwn ? '#a855f7' : '#3b82f6'}
+    />
+  )}
               </div>
             )}
           </div>

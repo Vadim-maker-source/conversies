@@ -47,14 +47,14 @@ export default function RootLayout({
         <meta name="yandex-verification" content="0a58f104740674d0" />
       </head>
       <ReactQueryProvider>
-      <StreamProvider>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${unbounded.variable} antialiased`}
       >
+      <StreamProvider>
         {children}
+        </StreamProvider>
         <Toaster />
       </body>
-      </StreamProvider>
       </ReactQueryProvider>
     </html>
   );
