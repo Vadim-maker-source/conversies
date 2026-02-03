@@ -2721,6 +2721,7 @@ const handleStartCall = () => {
 {showCall && (
   <CallInterface
     roomId={`chat-${chatInfo.id}`}
+    onClose={() => setShowCall(false)}
   />
 )}
 

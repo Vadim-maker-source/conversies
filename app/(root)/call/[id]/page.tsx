@@ -20,6 +20,7 @@ export default function CallPage() {
       {showCall && (
         <CallInterface
           roomId={roomId}
+          onClose={() => setShowCall(false)}
         />
       )}
     </StreamProvider>

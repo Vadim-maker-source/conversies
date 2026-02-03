@@ -1,37 +1,56 @@
 'use client';
 
-import { useCall, useCallStateHooks } from '@stream-io/video-react-sdk';
+import { Call } from '@stream-io/video-react-sdk';
+import {
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  ScreenShare,
+  ScreenShareOff,
+  PhoneOff,
+} from 'lucide-react';
 
-export function CallControls({ onLeave }: { onLeave: () => void }) {
-  const call = useCall();
+export function CallControls({
+  call,
+  onLeave,
+}: {
+  call: Call;
+  onLeave: () => void;
+}) {
+  const mic = call.microphone;
+  const cam = call.camera;
+  const screen = call.screenShare;
 
-  const {
-    useMicrophoneState,
-    useCameraState,
-    useScreenShareState,
-  } = useCallStateHooks();
+  const toggleMic = async () => {
+    mic.enabled ? mic.disable() : mic.enable();
+  };
 
-  const mic = useMicrophoneState();
-  const cam = useCameraState();
-  const screen = useScreenShareState();
+  const toggleCamera = async () => {
+    cam.enabled ? cam.disable() : cam.enable();
+  };
 
-  if (!call) return null;
+  const toggleScreen = async () => {
+    screen.enabled ? screen.disable() : screen.enable();
+  };
 
   return (
-    <div>
-      <button onClick={() => mic.isEnabled ? call.microphone.disable() : call.microphone.enable()}>
-        Mic
+    <div className="flex items-center justify-center gap-4 py-4 bg-black/80">
+      <button onClick={toggleMic}>
+        {mic.enabled ? <Mic className='text-white' /> : <MicOff className='text-white' />}
       </button>
 
-      <button onClick={() => cam.isEnabled ? call.camera.disable() : call.camera.enable()}>
-        Cam
+      <button onClick={toggleCamera}>
+        {cam.enabled ? <Video className='text-white' /> : <VideoOff className='text-white' />}
       </button>
 
-      <button onClick={() => screen.isEnabled ? call.screenShare.disable() : call.screenShare.enable()}>
-        Screen
+      <button onClick={toggleScreen}>
+        {screen.enabled ? <ScreenShareOff className='text-white' /> : <ScreenShare className='text-white' />}
       </button>
 
-      <button onClick={onLeave}>Leave</button>
+      <button onClick={onLeave}>
+        <PhoneOff className='text-white' />
+      </button>
     </div>
   );
 }

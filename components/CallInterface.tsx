@@ -1,42 +1,57 @@
-'use client';
+'use client'
 
-import {
-  StreamCall,
-  SpeakerLayout,
-  Call,
-  useStreamVideoClient,
-} from '@stream-io/video-react-sdk';
-import { useState } from 'react';
-import { CallControls } from '@/video/CallControls';
+import { CallControls } from '@/video/CallControls'
+import { StreamCall, SpeakerLayout, useStreamVideoClient, Call } from '@stream-io/video-react-sdk'
+import { useState } from 'react'
 
 type Props = {
-  roomId: string;
-};
+  roomId: string
+  onClose: () => void
+}
 
-export function CallInterface({ roomId }: Props) {
-  const client = useStreamVideoClient();
-  const [call, setCall] = useState<Call | null>(null);
+export function CallInterface({ roomId, onClose }: Props) {
+  const client = useStreamVideoClient()
+  const [call, setCall] = useState<Call | null>(null)
+  const [joined, setJoined] = useState(false)
 
-  const joinCall = async () => {
-    if (!client) return;
+  const handleJoin = async () => {
+    if (!client) return
+    const newCall = client.call('default', roomId)
 
-    const newCall = client.call('default', roomId);
-    await newCall.join({ create: true });
-    setCall(newCall);
-  };
-
-  if (!call) {
-    return (
-      <button onClick={joinCall}>
-        Join call
-      </button>
-    );
+    console.log('Client:', client)
+console.log('Call before join:', newCall)
+    setCall(newCall)
+    await newCall.join({ create: true })
+    setJoined(true)
   }
 
+  if (!joined) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center z-500">
+        <button
+          onClick={handleJoin}
+          className="px-6 py-3 bg-green-600 rounded text-white"
+        >
+          Join Call
+        </button>
+      </div>
+    )
+  }
+
+  if (!call) return null
+
   return (
-    <StreamCall call={call}>
-      <SpeakerLayout />
-      <CallControls onLeave={() => call.leave()} />
-    </StreamCall>
-  );
+    <div className="fixed inset-0 bg-black w-full h-screen z-500">
+      <StreamCall call={call}>
+  <SpeakerLayout />
+  <CallControls
+    call={call}
+    onLeave={async () => {
+      await call.leave();
+      onClose();
+    }}
+  />
+</StreamCall>
+    </div>
+  )
 }
