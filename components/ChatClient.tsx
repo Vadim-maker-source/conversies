@@ -1143,6 +1143,125 @@ function PinnedMessage({
   )
 }
 
+
+type Props = {
+  src: string
+  size?: number
+  isOwn?: boolean
+}
+
+export function CircularVideoMessage({
+  src,
+  size = 180,
+  isOwn = false,
+}: Props) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [progress, setProgress] = useState(0)
+  const [isPlaying, setIsPlaying] = useState(false)
+
+  const strokeWidth = 5
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const dashOffset =
+    circumference - (progress / 100) * circumference
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const updateProgress = () => {
+      if (video.duration > 0) {
+        setProgress((video.currentTime / video.duration) * 100)
+      }
+    }
+
+    const onEnded = () => {
+      setIsPlaying(false)
+      setProgress(100)
+    }
+
+    video.addEventListener('timeupdate', updateProgress)
+    video.addEventListener('ended', onEnded)
+
+    return () => {
+      video.removeEventListener('timeupdate', updateProgress)
+      video.removeEventListener('ended', onEnded)
+    }
+  }, [])
+
+  const togglePlay = async () => {
+    const video = videoRef.current
+    if (!video) return
+
+    if (video.paused) {
+      await video.play()
+      setIsPlaying(true)
+    } else {
+      video.pause()
+      setIsPlaying(false)
+    }
+  }
+
+  return (
+    <div
+      style={{ width: size, height: size }}
+      className="relative cursor-pointer select-none"
+      onClick={togglePlay}
+    >
+      {/* VIDEO */}
+      <video
+        ref={videoRef}
+        src={src}
+        preload="metadata"
+        playsInline
+        muted={false}
+        className="absolute inset-0 w-full h-full object-cover rounded-full pointer-events-none"
+      />
+
+      {/* OVERLAY */}
+      <div className="absolute inset-0 rounded-full bg-black/20" />
+
+      {/* PROGRESS CIRCLE */}
+      <svg
+        width={size}
+        height={size}
+        className="absolute inset-0 -rotate-90"
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="rgba(255,255,255,0.3)"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={isOwn ? '#a855f7' : '#3b82f6'}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          className="transition-all duration-100"
+        />
+      </svg>
+
+      {/* PLAY ICON */}
+      {!isPlaying && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-14 h-14 rounded-full bg-black/60 flex items-center justify-center">
+            ▶
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 // Компонент для отображения медиа
 function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: boolean }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -1310,13 +1429,11 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
                 
                 {/* Круговой прогресс-бар для видеосообщений */}
                 {isVideoMessage && (
-    <CircularProgress
-      progress={videoProgress}
-      size={64}
-      strokeWidth={4}
-      color={isOwn ? '#a855f7' : '#3b82f6'}
-    />
-  )}
+  <CircularVideoMessage
+    src={fileUrl}
+    isOwn={isOwn}
+  />
+)}
                 
                 <button
                   onClick={(e) => handleDownloadMedia(fileUrl, e)}
@@ -1414,13 +1531,11 @@ function MediaMessage({ message, isOwn }: { message: MessageWithFiles; isOwn: bo
                 
                 {/* Круговой прогресс-бар в модальном окне для видеосообщений */}
                 {isVideoMessage && (
-    <CircularProgress
-      progress={videoProgress}
-      size={64}
-      strokeWidth={4}
-      color={isOwn ? '#a855f7' : '#3b82f6'}
-    />
-  )}
+  <CircularVideoMessage
+    src={fileUrls[0]}
+    isOwn={isOwn}
+  />
+)}
               </div>
             )}
           </div>
