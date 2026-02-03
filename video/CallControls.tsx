@@ -37,19 +37,19 @@ export function CallControls({
   return (
     <div className="flex items-center justify-center gap-4 py-4 bg-black/80">
       <button onClick={toggleMic}>
-        {mic.enabled ? <Mic /> : <MicOff />}
+        {mic.enabled ? <Mic className='text-white' /> : <MicOff className='text-white' />}
       </button>
 
       <button onClick={toggleCamera}>
-        {cam.enabled ? <Video /> : <VideoOff />}
+        {cam.enabled ? <Video className='text-white' /> : <VideoOff className='text-white' />}
       </button>
 
       <button onClick={toggleScreen}>
-        {screen.enabled ? <ScreenShareOff /> : <ScreenShare />}
+        {screen.enabled ? <ScreenShareOff className='text-white' /> : <ScreenShare className='text-white' />}
       </button>
 
       <button onClick={onLeave}>
-        <PhoneOff />
+        <PhoneOff className='text-white' />
       </button>
     </div>
   );
